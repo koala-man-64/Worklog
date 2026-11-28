@@ -170,6 +170,14 @@ ROUTES: dict[str, dict[str, str | Only]] = {
 
     "/export": {"GET": HUMAN},
 
+    "/gates/{identity}": {"GET": READ, "PATCH": HUMAN},
+    "/gates/{identity}/archive": {"POST": HUMAN},
+    "/gates/{identity}/history": {"GET": READ},
+    "/gates/{identity}/pass": {"POST": HUMAN},
+    "/gates/{identity}/recover": {"POST": HUMAN},
+    "/gates/{identity}/reopen": {"POST": HUMAN},
+    "/gates/{identity}/waive": {"POST": HUMAN},
+
     "/github": {"POST": HUMAN},
     "/github/{identity}": {"GET": READ, "PATCH": HUMAN},
     "/github/{identity}/archive": {"POST": HUMAN},
@@ -261,6 +269,7 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/roadmaps/{identity}/deliverable-options": {"GET": READ},
     "/roadmaps/{identity}/deliverables": {"GET": READ, "POST": HUMAN},
     "/roadmaps/{identity}/dispatch": {"GET": READ},
+    "/roadmaps/{identity}/gates": {"GET": READ},
     "/roadmaps/{identity}/move": {"POST": HUMAN},
     "/roadmaps/{identity}/outline": {"GET": READ},
     "/roadmaps/{identity}/proposals": {"GET": READ},
@@ -279,6 +288,7 @@ ROUTES: dict[str, dict[str, str | Only]] = {
 
     "/steps/{identity}": {"GET": READ, "PATCH": HUMAN},
     "/steps/{identity}/deliverables": {"GET": READ},
+    "/steps/{identity}/gates": {"GET": READ, "POST": HUMAN},
     "/steps/{identity}/history": {"GET": READ},
     "/steps/{identity}/move": {"POST": HUMAN},
     "/steps/{identity}/progress": {"PATCH": HUMAN},

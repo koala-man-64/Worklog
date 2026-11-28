@@ -32,6 +32,18 @@
   border-left: 3px solid var(--teal);
   background: var(--teal-wash);
 }
+.gate-proposal-summary {
+  margin: 8px 0 12px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--status-doing-border);
+  background: var(--status-doing-bg);
+}
+.gate-proposal-summary > p:first-child {
+  margin-top: 0;
+}
+.gate-proposal-summary > p:last-child {
+  margin-bottom: 0;
+}
 .deliverable-proposal-summary > p:first-child {
   margin-top: 0;
 }

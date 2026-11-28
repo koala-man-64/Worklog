@@ -730,13 +730,13 @@ class AgentClient:
             allowed = method in {"GET", "PATCH"} and valid_id(segments[1])
         if len(segments) == 3 and segments[0] == "proposals" and segments[2] in {"submit", "withdraw", "reopen"}:
             allowed = method == "POST" and valid_id(segments[1])
-        if len(segments) == 2 and segments[0] in {"roadmaps", "steps", "resources", "deliverables"}:
+        if len(segments) == 2 and segments[0] in {"roadmaps", "steps", "resources", "deliverables", "gates"}:
             allowed = method == "GET" and valid_id(segments[1])
-        roadmap_reads = {"outline", "deliverables", "deliverable-options"}
+        roadmap_reads = {"outline", "deliverables", "deliverable-options", "gates"}
         if len(segments) == 3 and (
             segments[0] == "roadmaps" and segments[2] in roadmap_reads
-            or segments[0] == "steps" and segments[2] == "deliverables"
-            or segments[0] == "deliverables" and segments[2] == "history"
+            or segments[0] == "steps" and segments[2] in {"deliverables", "gates"}
+            or segments[0] in {"deliverables", "gates"} and segments[2] == "history"
         ):
             allowed = method == "GET" and valid_id(segments[1])
         if route in {"/proposals", "/agent-registrations", "/agent-registrations/continue", "/agent-registrations/retire"} and method == "POST":
@@ -1237,6 +1237,9 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
         if args.roadmap_action == "dispatch":
             query = _coordination_query(args, "waveId", "repositoryId", "includeDone")
             return client.request("GET", f"/roadmaps/{args.id}/dispatch" + query)
+        if args.roadmap_action == "gates":
+            query = urlencode({"archived": str(args.archived).lower(), "onlyOpen": str(args.open).lower()})
+            return client.request("GET", f"/roadmaps/{args.id}/gates?{query}")
         return client.request("GET", "/roadmaps/" + args.id)
     if args.agent_action == "waves":
         if args.wave_action == "list":
@@ -1256,6 +1259,13 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
         route = "/steps/" + args.id
         if args.step_action == "deliverables":
             route += "/deliverables" + _coordination_query(args, "limit", "offset")
+        elif args.step_action == "gates":
+            route += "/gates?" + urlencode({"archived": str(args.archived).lower()})
+        return client.request("GET", route)
+    if args.agent_action == "gate":
+        route = "/gates/" + args.id
+        if args.gate_action == "history":
+            route += "/history" + _coordination_query(args, "limit", "offset")
         return client.request("GET", route)
     if args.agent_action == "proposals":
         proposal_query = {**({"status": args.status} if args.status else {}), "limit": args.limit, "offset": args.offset}
@@ -2446,6 +2456,10 @@ def parser() -> argparse.ArgumentParser:
     dispatch_p.add_argument("--wave", dest="waveId", help="Focus on a specific wave ID")
     dispatch_p.add_argument("--repo", dest="repositoryId", help="Filter to one repository ID")
     dispatch_p.add_argument("--include-done", dest="includeDone", action="store_true")
+    roadmap_gates = roadmap_actions.add_parser("gates", help="List pre-completion gates across a roadmap's steps")
+    roadmap_gates.add_argument("id")
+    roadmap_gates.add_argument("--open", action="store_true", help="List only unsatisfied gates")
+    roadmap_gates.add_argument("--archived", action="store_true", help="List archived gates")
     waves_p = actions.add_parser("waves", help="Inspect synchronized release/contract waves and report consumer re-pins")
     wave_actions = waves_p.add_subparsers(dest="wave_action", required=True)
     wave_list = wave_actions.add_parser("list", help="List waves on a roadmap")
@@ -2462,13 +2476,23 @@ def parser() -> argparse.ArgumentParser:
     wave_repin.add_argument("--commit", help="Commit SHA")
     wave_repin.add_argument("--request-id", required=True,
                             help="Stable operation key; reuse with the same payload after an uncertain result")
-    step = actions.add_parser("step", help="Read a roadmap step or its linked deliverables")
+    step = actions.add_parser("step", help="Read a roadmap step, its linked deliverables, or its gates")
     step_actions = step.add_subparsers(dest="step_action", required=True)
-    step_actions.add_parser("show", help="Read a step's text, progress, notes, tracked chats and place in the roadmap").add_argument("id")
+    step_actions.add_parser("show", help="Read a step's text, progress, gates, notes, tracked chats and place in the roadmap").add_argument("id")
     step_deliverables = step_actions.add_parser("deliverables", help="List active deliverables linked to a step")
     step_deliverables.add_argument("id")
     step_deliverables.add_argument("--limit", type=int, default=50)
     step_deliverables.add_argument("--offset", type=int, default=0)
+    step_gates = step_actions.add_parser("gates", help="List pre-completion gates attached to a step")
+    step_gates.add_argument("id")
+    step_gates.add_argument("--archived", action="store_true", help="List archived gates")
+    gate = actions.add_parser("gate", help="Read one step gate or its history")
+    gate_actions = gate.add_subparsers(dest="gate_action", required=True)
+    gate_actions.add_parser("show", help="Read a gate's criteria, target, effective state and resolution").add_argument("id")
+    gate_history = gate_actions.add_parser("history", help="Read lifecycle events for a step gate")
+    gate_history.add_argument("id")
+    gate_history.add_argument("--limit", type=int, default=50)
+    gate_history.add_argument("--offset", type=int, default=0)
     proposals = actions.add_parser("proposals", help="Proposals you may see, oldest first, 50 at a time by default")
     proposals.add_argument("--status")
     proposals.add_argument("--limit", type=int, default=50)

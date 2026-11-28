@@ -74,7 +74,9 @@ def test_the_outline_gives_every_step_in_outline_order_without_its_text(client):
         (ROOT_A, "Build it", "doing", None), (A1, "Parser", "done", ROOT_A), (A1A, "Tokenizer", "done", A1),
         (A2, "Writer", "open", ROOT_A)]
     assert all(
-        set(step) == {"id", "title", "status", "parentId", "position", "workClass", "repositoryIds", "waveId"}
+        set(step) == {
+            "id", "title", "status", "parentId", "position", "workClass", "repositoryIds", "waveId", "gateSummary",
+        }
         for step in outline["steps"]
     )
     positions = {step["id"]: step["position"] for step in roadmap["steps"]}

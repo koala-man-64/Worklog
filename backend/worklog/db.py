@@ -19,6 +19,7 @@ REQUIRED_TABLES = frozenset({"settings", "work_items", "days", "daily_entries", 
                              "credentials", "roadmaps", "steps", "proposals", "events", "receipts", "search_index",
                              "roadmap_versions"})
 DELIVERABLE_TABLES = frozenset({"deliverables", "deliverable_steps", "deliverable_acceptances"})
+GATE_TABLES = frozenset({"step_gates"})
 
 
 class Database:
@@ -51,7 +52,11 @@ class Database:
                     raise AppError(503, "schema_version", "Unsupported database schema; no data was changed")
                 if conn.execute("PRAGMA quick_check").fetchone()[0] != "ok":
                     raise AppError(503, "database_invalid", "Database integrity check failed")
-                required = REQUIRED_TABLES | (DELIVERABLE_TABLES if version >= 39 else frozenset())
+                required = (
+                    REQUIRED_TABLES
+                    | (DELIVERABLE_TABLES if version >= 39 else frozenset())
+                    | (GATE_TABLES if version >= 40 else frozenset())
+                )
                 actual = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
                 if not required <= actual:
                     raise AppError(503, "database_invalid", "Database schema is incomplete")
@@ -71,7 +76,7 @@ class Database:
                     conn.execute("BEGIN IMMEDIATE")
                     upgrade(conn)
                     actual = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-                    if (REQUIRED_TABLES | DELIVERABLE_TABLES) - actual:
+                    if (REQUIRED_TABLES | DELIVERABLE_TABLES | GATE_TABLES) - actual:
                         raise AppError(503, "database_invalid", "Database schema is incomplete")
                     if conn.execute("PRAGMA foreign_key_check").fetchone():
                         raise AppError(503, "database_invalid", "Database has invalid references")
@@ -87,7 +92,7 @@ class Database:
                     conn.execute("INSERT INTO settings(key,value) VALUES(?,?)", (key, json.dumps(value)))
                 conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
                 actual = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-                if (REQUIRED_TABLES | DELIVERABLE_TABLES) - actual:
+                if (REQUIRED_TABLES | DELIVERABLE_TABLES | GATE_TABLES) - actual:
                     raise AppError(503, "database_invalid", "Database schema is incomplete")
                 conn.commit()
             except Exception:

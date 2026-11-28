@@ -8,6 +8,7 @@ from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from . import gates
 from .common import AppError, rows_in
 from .discussions import DiscussionService
 from .leases import repository_slot_summaries
@@ -335,21 +336,30 @@ class DispatchService:
             for r in step_rows
         ]
         by_id = {s["id"]: s for s in steps}
+        gate_summaries = gates.summaries_by_step(conn, by_id)
+        for sid, s in by_id.items():
+            s["gateSummary"] = gate_summaries.get(sid, gates.empty_summary())
         children: dict[str | None, list[dict[str, Any]]] = defaultdict(list)
         for s in steps:
             children[s["parentId"]].append(s)
 
-        def derive(step: dict[str, Any]) -> str:
+        def derive(step: dict[str, Any]) -> tuple[str, bool]:
             kids = children.get(step["id"], [])
+            summary = step["gateSummary"]
             if kids:
-                states = [derive(k) for k in kids]
-                step["status"] = (
-                    "done" if all(x == "done" for x in states)
-                    else "blocked" if "blocked" in states
-                    else "doing" if any(x in {"doing", "done"} for x in states)
-                    else "open"
-                )
-            return step["status"]
+                results = [derive(k) for k in kids]
+                states = [st for st, _ in results]
+                all_eff_done = all(eff for _, eff in results)
+                if all_eff_done and summary["blocking"] == 0:
+                    step["status"] = "done"
+                elif "blocked" in states:
+                    step["status"] = "blocked"
+                elif any(x in {"doing", "done"} for x in states):
+                    step["status"] = "doing"
+                else:
+                    step["status"] = "open"
+                return step["status"], step["status"] == "done"
+            return step["status"], (step["status"] == "done" and summary["blocking"] == 0)
 
         for root in children.get(None, []):
             derive(root)
@@ -468,6 +478,7 @@ class DispatchService:
                 "queuePosition": repo_step_pos.get((repo_id, st["id"])) if repo_id else None,
                 "phasePath": phase_path(st["id"]),
                 "activeAgents": step_agents.get(st["id"], []),
+                "gateSummary": st["gateSummary"],
             }
 
         repo_lanes = []

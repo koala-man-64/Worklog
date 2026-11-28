@@ -15,11 +15,11 @@ PACKAGE = Path(__file__).resolve().parents[1] / "worklog"
 ORDER = [
     # Nothing of Worklog's below them, where the data lives, the current schema and the route policy
     # among them, then the record kinds discussion tags name.
-    "__init__", "locations", "push_events", "common", "models", "dependency_models", "responses", "avatars", "transcripts", "active_sessions", "antigravity_sessions", "maintenance", "schema", "policy",
+    "__init__", "locations", "push_events", "common", "models", "dependency_models", "gate_models", "responses", "avatars", "transcripts", "active_sessions", "antigravity_sessions", "maintenance", "schema", "policy",
     "record_kinds",
     # Search, scratchpads, repository links, request shapes, the operation registry, the names a
     # proposal gives its new records, and what an applied change counts toward.
-    "search", "scratchpad", "repository_links", "dependencies", "coordination_models", "discussion_models", "lease_models", "operations",
+    "search", "scratchpad", "repository_links", "gates", "dependencies", "coordination_models", "discussion_models", "lease_models", "operations",
     "proposal_names", "proposal_targets",
     # The calculated Active status, worked out from agents' participations on each read.
     "agent_activity",
@@ -38,7 +38,7 @@ ORDER = [
     "records", "support", "deliverables", "items", "people", "services", "session_launches", "live", "git_activity",
     # HTTP: the routes of each domain, the request guard in front of them all, the usage counts kept
     # inside it, and the app.
-    "coordination_api", "lease_api", "wave_api", "dependency_api", "discussion_api", "registry_api",
+    "coordination_api", "lease_api", "wave_api", "dependency_api", "gate_api", "discussion_api", "registry_api",
     "resource_api", "ticket_api", "deliverable_api", "session_api", "live_api", "push_api", "guard", "usage", "app",
     # The command line.
     "push_notice", "push_providers", "push_channel", "push_cli", "local_sessions", "cli",

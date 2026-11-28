@@ -8,7 +8,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
-from . import record_kinds
+from . import gates, record_kinds
 from .common import LIVE_AGENT, AppError, event, now, require_revision, rows_in, text, uid
 from .repository_links import repository_dependencies
 
@@ -64,14 +64,20 @@ def _records(conn: sqlite3.Connection, keys: Iterable[Key]) -> dict[Key, _Record
     for kind, identity in keys:
         by_type[kind].add(identity)
     result: dict[Key, _Record] = {}
+    step_done_map = (
+        gates.steps_effectively_done(conn, by_type["step"], include_archived_roadmaps=True)
+        if by_type.get("step")
+        else {}
+    )
     for kind, ids in by_type.items():
         for row in rows_in(conn, _RECORD_NODES[kind], ids):
             info = dict(row)
             identity = info["id"]
+            done = step_done_map.get(identity, False) if kind == "step" else bool(info.get("done"))
             result[(kind, identity)] = _Record({
                 "type": kind, "id": identity, "title": info["title"], "available": not info["archived"],
                 "roadmapId": info.get("roadmapId"), "mergedInto": info.get("mergedInto"),
-            }, bool(info.get("done")))
+            }, done)
     return result
 
 

@@ -1,0 +1,99 @@
+{
+  "body": {
+    "items": [
+      {
+        "actorId": "local-user",
+        "actorKind": "human",
+        "actorLabel": "You",
+        "after": {
+          "archived": false,
+          "autoEvaluated": false,
+          "createdAt": "<time.ffffff+hh:mm>",
+          "criteria": "Confirm auth boundary before marking done.",
+          "humanOnly": true,
+          "id": "<id2>",
+          "kind": "approval",
+          "position": 0,
+          "resolution": {
+            "actorId": "local-user",
+            "actorKind": "human",
+            "actorLabel": "You",
+            "note": "Reviewed auth boundary",
+            "proposalId": null,
+            "resolvedAt": "<time.ffffff+hh:mm>"
+          },
+          "revision": 2,
+          "roadmapId": "<id4>",
+          "satisfied": true,
+          "state": "passed",
+          "stepId": "<id3>",
+          "stepTitle": "Child",
+          "storedStatus": "passed",
+          "target": null,
+          "title": "Security review signed off",
+          "updatedAt": "<time.ffffff+hh:mm>"
+        },
+        "before": {
+          "archived": false,
+          "autoEvaluated": false,
+          "createdAt": "<time.ffffff+hh:mm>",
+          "criteria": "Confirm auth boundary before marking done.",
+          "humanOnly": true,
+          "id": "<id2>",
+          "kind": "approval",
+          "position": 0,
+          "resolution": null,
+          "revision": 1,
+          "roadmapId": "<id4>",
+          "satisfied": false,
+          "state": "open",
+          "stepId": "<id3>",
+          "stepTitle": "Child",
+          "storedStatus": "open",
+          "target": null,
+          "title": "Security review signed off",
+          "updatedAt": "<time.ffffff+hh:mm>"
+        },
+        "createdAt": "<time.ffffff+hh:mm>",
+        "entityId": "<id2>",
+        "id": "<id1>",
+        "kind": "gate.pass",
+        "localDate": "<today>"
+      },
+      {
+        "actorId": "local-user",
+        "actorKind": "human",
+        "actorLabel": "You",
+        "after": {
+          "archived": false,
+          "autoEvaluated": false,
+          "createdAt": "<time.ffffff+hh:mm>",
+          "criteria": "Confirm auth boundary before marking done.",
+          "humanOnly": true,
+          "id": "<id2>",
+          "kind": "approval",
+          "position": 0,
+          "resolution": null,
+          "revision": 1,
+          "roadmapId": "<id4>",
+          "satisfied": false,
+          "state": "open",
+          "stepId": "<id3>",
+          "stepTitle": "Child",
+          "storedStatus": "open",
+          "target": null,
+          "title": "Security review signed off",
+          "updatedAt": "<time.ffffff+hh:mm>"
+        },
+        "before": null,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "entityId": "<id2>",
+        "id": "<id5>",
+        "kind": "gate.create",
+        "localDate": "<today>"
+      }
+    ],
+    "total": 2
+  },
+  "status": 200
+}

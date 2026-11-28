@@ -188,6 +188,15 @@
         "queued": [
           {
             "activeAgents": [],
+            "gateSummary": {
+              "blocking": 0,
+              "humanOnlyBlocking": 0,
+              "open": 0,
+              "passed": 1,
+              "total": 1,
+              "unavailable": 0,
+              "waived": 0
+            },
             "id": "<id3>",
             "inActiveWave": true,
             "multiRepo": false,

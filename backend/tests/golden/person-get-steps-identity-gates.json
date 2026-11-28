@@ -1,0 +1,45 @@
+{
+  "body": {
+    "items": [
+      {
+        "archived": false,
+        "autoEvaluated": false,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "criteria": "Confirm auth boundary before marking done.",
+        "humanOnly": true,
+        "id": "<id1>",
+        "kind": "approval",
+        "position": 0,
+        "resolution": {
+          "actorId": "local-user",
+          "actorKind": "human",
+          "actorLabel": "You",
+          "note": "Reviewed auth boundary",
+          "proposalId": null,
+          "resolvedAt": "<time.ffffff+hh:mm>"
+        },
+        "revision": 2,
+        "roadmapId": "<id3>",
+        "satisfied": true,
+        "state": "passed",
+        "stepId": "<id2>",
+        "stepTitle": "Child",
+        "storedStatus": "passed",
+        "target": null,
+        "title": "Security review signed off",
+        "updatedAt": "<time.ffffff+hh:mm>"
+      }
+    ],
+    "summary": {
+      "blocking": 0,
+      "humanOnlyBlocking": 0,
+      "open": 0,
+      "passed": 1,
+      "total": 1,
+      "unavailable": 0,
+      "waived": 0
+    },
+    "total": 1
+  },
+  "status": 200
+}

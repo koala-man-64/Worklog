@@ -34,7 +34,7 @@ from .recovery import _readonly, copy_database
 EXAMPLES = 5
 # The table of each kind of record that other records name by type and id.
 TABLES = {"item": "work_items", "roadmap": "roadmaps", "step": "steps", "repository": "repositories",
-          "agent": "communication_agents",
+          "agent": "communication_agents", "deliverable": "deliverables",
           "person": "people", "resource": "resources", "proposal": "proposals", "ticket": "tickets",
           "question": "roadmap_questions", "decision": "roadmap_decisions"}
 # What names a record by type and id, with the types each takes: those its CHECK allows (since v23,
@@ -49,6 +49,7 @@ REFERENCES = [
     ("dependencies", "dependent_type", "dependent_id", ("repository", "step", "item", "ticket", "agent")),
     ("dependencies", "prerequisite_type", "prerequisite_id", ("repository", "step", "item", "ticket", "agent")),
     ("dependencies", "context_type", "context_id", ("repository", "step", "item", "ticket")),
+    ("step_gates", "target_type", "target_id", ("step", "deliverable", "ticket", "question")),
     ("person_links", "target_type", "target_id", ("item", "roadmap", "repository")),
     ("discussion_contexts", "context_type", "context_id",
      ("item", "roadmap", "step", "repository", "ticket", "person", "resource", "question", "decision")),
@@ -83,7 +84,7 @@ def doctor_database(db_path: Path | str) -> dict[str, Any]:
                 raise ValueError(f"The database is at schema version {version}: start Worklog once to upgrade it "
                                  f"to version {SCHEMA_VERSION}, then check it")
             checks = {"integrity": _integrity(conn), "references": _references(conn), "dependencies": _dependencies(conn),
-                      "steps": _steps(conn),
+                      "stepGates": _step_gates(conn), "steps": _steps(conn),
                       "trackedChats": _tracked_chats(conn), "searchIndex": _search_index(conn),
                       "searchKeys": _search_keys(conn), "leases": _leases(conn), "waves": _waves(conn)}
     return {"ok": not any(check["problems"] for check in checks.values()), "checks": checks}
@@ -139,6 +140,56 @@ def _steps(conn: sqlite3.Connection) -> dict[str, Any]:
             "SELECT s.id,s.parent_id FROM steps s LEFT JOIN steps p ON p.id=s.parent_id "
             "WHERE s.parent_id IS NOT NULL AND (p.id IS NULL OR p.roadmap_id<>s.roadmap_id) ORDER BY s.id"):
         found.add({"step": step, "parent": parent, "problem": "its parent is gone or on another roadmap"})
+    return found.report()
+
+
+def _step_gates(conn: sqlite3.Connection) -> dict[str, Any]:
+    """Check step-gate invariants and acyclicity of the combined step-tree + step-gate graph."""
+    found = _Found()
+    for gate_id, step_id, target_type, target_id in conn.execute(
+            "SELECT id,step_id,target_type,target_id FROM step_gates "
+            "WHERE (target_type IS NULL)<>(target_id IS NULL) "
+            "OR (target_type='step' AND target_id=step_id) ORDER BY id"):
+        found.add({"gateId": gate_id, "stepId": step_id, "targetType": target_type, "targetId": target_id,
+                   "problem": "invalid step gate target"})
+    for gate_id, step_id, status in conn.execute(
+            "SELECT id,step_id,status FROM step_gates "
+            "WHERE target_type IS NOT NULL AND status NOT IN ('open','waived') ORDER BY id"):
+        found.add({"gateId": gate_id, "stepId": step_id, "status": status,
+                   "problem": "linked gate stores manual status"})
+    # Combined completion-blocking graph: parent -> child (non-retired) and step -> target_step (active, unwaived).
+    edges: dict[str, list[tuple[str, str | None]]] = {}
+    for step_id, parent_id in conn.execute(
+            "SELECT id,parent_id FROM steps WHERE retired=0 AND parent_id IS NOT NULL ORDER BY parent_id,id"):
+        edges.setdefault(parent_id, []).append((step_id, None))
+    for gate_id, step_id, target_id in conn.execute(
+            "SELECT id,step_id,target_id FROM step_gates "
+            "WHERE archived=0 AND status<>'waived' AND target_type='step' AND target_id IS NOT NULL "
+            "ORDER BY step_id,target_id,id"):
+        edges.setdefault(step_id, []).append((target_id, gate_id))
+    state: dict[str, int] = {}
+    nodes = set(edges)
+    nodes.update(target for neighbors in edges.values() for target, _ in neighbors)
+    for node in sorted(nodes):
+        if state.get(node, 0) != 0:
+            continue
+        stack: list[tuple[str, int]] = [(node, 0)]
+        state[node] = 1
+        while stack:
+            current, index = stack[-1]
+            neighbors = edges.get(current, ())
+            if index < len(neighbors):
+                stack[-1] = (current, index + 1)
+                target, gate_id = neighbors[index]
+                if state.get(target, 0) == 1:
+                    found.add({"gateId": gate_id, "stepId": current, "targetStepId": target,
+                               "problem": "step gate completion cycle"})
+                elif state.get(target, 0) == 0:
+                    state[target] = 1
+                    stack.append((target, 0))
+            else:
+                state[current] = 2
+                stack.pop()
     return found.report()
 
 

@@ -9,7 +9,7 @@ Worklog runs at **http://127.0.0.1:8877** from one local SQLite database. Its wo
 - **Plan and record your days.** Plan what you will work on and mark what you actually worked on with an outcome and next action.
 - **Keep one backlog, stack ranked.** Work items carry a status, a stack rank, a Markdown description, a scratchpad, files, links, local paths, an Azure DevOps link, GitHub pull requests and commits, people and repositories, along with their daily record and full history.
 - **Track issues as tickets.** You and your agents file tickets for bugs, incidents and tasks, work them with a status, assignee and comments, and close them with a resolution. Closed tickets stay searchable, so the next agent finds what fixed an issue last time.
-- **Plan bigger efforts as roadmaps.** Roadmaps nest under each other and hold step trees with progress, deliverables, immutable versions, questions and decisions.
+- **Plan bigger efforts as roadmaps.** Roadmaps nest under each other and hold step trees with progress, completion gates, deliverables, immutable versions, questions and decisions.
 - **Know who is involved.** A people directory keeps each person's title, team, description, contact details and notes, and ties them to work items, roadmaps and repositories, with their role on each.
 - **Keep reference pages.** Resources are Markdown pages you write once for yourself and your agents, such as how you like work done, conventions and runbooks. You read them on the Resources page, agents read them from the command line, and they change them only through proposals.
 - **Work with AI agents under your control.** Claude Code, Codex, or any agent you give a credential can read your context, report what it is working on and where, talk with you and other agents, take and hand off responsibilities, file and close tickets, and propose changes that only you can approve, unless you turn approval off.
@@ -99,6 +99,19 @@ worklog agent --as NAME step deliverables STEP_ID
 
 An agent proposes changes with the usual proposal commands. The approval setting also applies when a proposal explicitly accepts a deliverable.
 [Agent CLI reference](docs/AGENT-GUIDE.md#52-reading)
+
+## Roadmap step gates
+
+Attach completion gates to any roadmap step (leaf or parent phase) under **Gates** on the step pane. A gate can be a manual check or linked to another step, deliverable, ticket or question that auto-evaluates live. Leaf steps cannot be marked done while active gates remain unsatisfied, and parent phases hold in progress until their gates are passed or waived with a reason. Mark a gate **Human-only** to prevent agent proposals from editing, passing or reopening it. [Track completion gates on roadmap steps](docs/GUIDE.md#track-completion-gates-on-roadmap-steps)
+
+Agents can inspect gates across a roadmap or step and propose gate changes through Review:
+
+```powershell
+worklog agent --as NAME roadmap gates ROADMAP_ID --open
+worklog agent --as NAME step gates STEP_ID
+worklog agent --as NAME gate show GATE_ID
+worklog agent --as NAME gate history GATE_ID
+```
 
 ## Working with agents
 

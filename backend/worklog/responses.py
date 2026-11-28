@@ -730,6 +730,86 @@ class Person(PersonRecord):
     repositories: list[PersonRepository]
 
 
+class GateSummary(Answer):
+    """Counts of active pre-completion gates on one roadmap step."""
+
+    total: int
+    open: int
+    passed: int
+    waived: int
+    unavailable: int
+    blocking: int
+    humanOnlyBlocking: int
+
+
+class GateTarget(Answer):
+    """The Worklog record a linked gate auto-evaluates against."""
+
+    type: Literal["step", "deliverable", "ticket", "question"]
+    id: str
+    title: str
+    status: str
+    available: bool
+    roadmapId: str | None
+    href: str | None
+
+
+class GateResolution(Answer):
+    """Who passed or waived a gate, when, and with what note or reason."""
+
+    resolvedAt: str
+    actorId: str
+    actorLabel: str
+    actorKind: Literal["human", "agent"]
+    proposalId: str | None
+    note: str
+
+
+class StepGate(Answer):
+    """One pre-completion gate attached to a roadmap step, with live effective state."""
+
+    id: str
+    stepId: str
+    roadmapId: str
+    stepTitle: str
+    title: str
+    criteria: str
+    kind: Literal["manual", "approval", "verification", "prerequisite"]
+    humanOnly: bool
+    target: GateTarget | None
+    storedStatus: Literal["open", "passed", "waived"]
+    state: Literal["open", "passed", "waived", "unavailable"]
+    satisfied: bool
+    autoEvaluated: bool
+    resolution: GateResolution | None
+    position: int
+    archived: bool
+    revision: int
+    createdAt: str
+    updatedAt: str
+
+
+class RoadmapGate(StepGate):
+    """One step gate listed at the roadmap level, with step status and phase context."""
+
+    stepStatus: str
+    isParent: bool
+    phaseId: str
+    phaseTitle: str
+
+
+class StepGates(Answer):
+    items: list[StepGate]
+    total: int
+    summary: GateSummary
+
+
+class RoadmapGates(Answer):
+    items: list[RoadmapGate]
+    total: int
+    summary: GateSummary
+
+
 class PlanStep(Answer):
     """A step's own fields, as a roadmap's steps and its saved revisions give them. A parent's
     status is derived from its leaves."""
@@ -748,6 +828,7 @@ class PlanStep(Answer):
     workClass: str
     repositoryIds: list[str]
     waveIds: list[str]
+    gateSummary: GateSummary
 
 
 class RoadmapStep(PlanStep):
@@ -834,6 +915,8 @@ class Step(RoadmapStep):
     siblings: list[SiblingStep]
     # The roadmap's tracked chats assigned to it, archived ones included, in the order they were put there.
     chats: list[TrackedChat]
+    # Active pre-completion gates on this step, evaluated live.
+    gates: list[StepGate]
 
 
 class DeliverableRoadmap(Answer):
@@ -995,6 +1078,7 @@ class OutlineStep(Answer):
     workClass: str
     repositoryIds: list[str]
     waveId: str | None
+    gateSummary: GateSummary
 
 
 class RoadmapOutline(Answer):
@@ -2972,6 +3056,7 @@ class DispatchStepCard(Answer):
     queuePosition: int | None
     phasePath: list[DispatchPhaseLink]
     activeAgents: list[DispatchStepAgent]
+    gateSummary: GateSummary
 
 
 class DispatchUnassignedStepCard(DispatchStepCard):

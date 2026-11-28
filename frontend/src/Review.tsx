@@ -205,6 +205,10 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
           priorDeliverableRevision={(target, currentRevision) =>
             priorDeliverableRevision(p.operations, index, target, currentRevision)
           }
+          priorGate={(target) => priorGateState(p.operations, index, target)}
+          priorGateRevision={(target, currentRevision) =>
+            priorGateRevision(p.operations, index, target, currentRevision)
+          }
           createdBy={(name) => {
             const at = declared.get(name);
             return at !== undefined && at < index ? at + 1 : undefined;
@@ -354,6 +358,10 @@ const NAME_FIELDS = new Set([
   "upstreamIds",
 ]);
 function namesIn(key: string, value: unknown): string[] {
+  if (key === "target" && value && typeof value === "object") {
+    const id = (value as { id?: unknown }).id;
+    return typeof id === "string" && NAME.test(id) ? [id] : [];
+  }
   if (!NAME_FIELDS.has(key)) return [];
   return (Array.isArray(value) ? value : [value]).filter(
     (v): v is string => typeof v === "string" && NAME.test(v),
@@ -428,6 +436,57 @@ function priorDeliverableRevision(
   }
   return found ? revision : undefined;
 }
+
+function priorGateState(
+  operations: Operation[],
+  beforeIndex: number,
+  target: string,
+) {
+  let state: Record<string, unknown> | undefined;
+  for (const operation of operations.slice(0, beforeIndex)) {
+    if (operation.action === "gate.create" && operation.payload.id === target) {
+      state = { ...operation.payload };
+    } else if (
+      operation.action === "gate.update" &&
+      operation.payload.id === target &&
+      state
+    ) {
+      state = { ...state, ...operation.payload };
+    }
+  }
+  return state;
+}
+
+function priorGateRevision(
+  operations: Operation[],
+  beforeIndex: number,
+  target: string,
+  currentRevision?: number,
+): number | null | undefined {
+  let revision = currentRevision;
+  let found = false;
+  for (const operation of operations.slice(0, beforeIndex)) {
+    if (!operation.action.startsWith("gate.") || operation.payload.id !== target)
+      continue;
+    if (operation.action === "gate.create") {
+      revision = 1;
+      found = true;
+      continue;
+    }
+    if (
+      !(["gate.update", "gate.pass", "gate.reopen"] as string[]).includes(
+        operation.action,
+      )
+    )
+      continue;
+    const expected = operation.payload.revision;
+    if (typeof expected !== "number") return null;
+    if (revision !== undefined && expected !== revision) return null;
+    revision = expected + 1;
+    found = true;
+  }
+  return found ? revision : undefined;
+}
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 // A ticket is named by its UUID, its key (T-12) or its number.
@@ -450,6 +509,7 @@ function currentPath(
     return DATE.test(date) ? "/days/" + encodeURIComponent(date) : null;
   }
   if (action === "progress.set" || action.startsWith("step.")) return "/steps/" + id;
+  if (action.startsWith("gate.")) return "/gates/" + id;
   if (action.startsWith("deliverable.")) return "/deliverables/" + id;
   if (action.startsWith("dependency.")) return "/dependencies/" + id;
   if (action.startsWith("wave.")) return "/waves/" + id;
@@ -484,6 +544,8 @@ export function OperationDiff({
   createdBy,
   priorDeliverable,
   priorDeliverableRevision,
+  priorGate,
+  priorGateRevision,
   onStale,
 }: {
   // The change's place in the proposal, as a failed approval names it.
@@ -498,6 +560,13 @@ export function OperationDiff({
   priorDeliverable?: (target: string) => Record<string, unknown> | undefined;
   /** The revision that remains after earlier matching changes in this proposal. */
   priorDeliverableRevision?: (
+    target: string,
+    currentRevision?: number,
+  ) => number | null | undefined;
+  /** Gate state staged by earlier changes in the same proposal. */
+  priorGate?: (target: string) => Record<string, unknown> | undefined;
+  /** The gate revision that remains after earlier matching changes in this proposal. */
+  priorGateRevision?: (
     target: string,
     currentRevision?: number,
   ) => number | null | undefined;
@@ -568,10 +637,15 @@ export function OperationDiff({
   });
   const before =
     current.data ?? (holder as unknown as Record<string, unknown> | null);
-  const stagedRevision = priorDeliverableRevision?.(
-    target,
-    typeof before?.revision === "number" ? before.revision : undefined,
-  );
+  const stagedRevision = action.startsWith("gate.")
+    ? priorGateRevision?.(
+        target,
+        typeof before?.revision === "number" ? before.revision : undefined,
+      )
+    : priorDeliverableRevision?.(
+        target,
+        typeof before?.revision === "number" ? before.revision : undefined,
+      );
   const revisionChainMismatch = stagedRevision === null;
   const comparableRevision =
     typeof stagedRevision === "number" ? stagedRevision : before?.revision;
@@ -585,11 +659,16 @@ export function OperationDiff({
   // Nothing exists yet to compare with: a create with no registered record, or a target an
   // earlier change creates.
   const isNew = !before && !loading && (creating || created);
+  const chainedKind = action.startsWith("gate.")
+    ? "gate"
+    : action.startsWith("deliverable.")
+      ? "deliverable"
+      : null;
   const staleDetail =
     payload.revision !== undefined &&
     (revisionChainMismatch ||
       (comparableRevision !== undefined && comparableRevision !== payload.revision))
-      ? `Change ${number ?? "?"} (${action}: expected revision ${String(payload.revision)}, ${action.startsWith("deliverable.") ? "current proposal revision" : "current revision"} ${String(comparableRevision ?? "unknown")})`
+      ? `Change ${number ?? "?"} (${action}: expected revision ${String(payload.revision)}, ${chainedKind ? "current proposal revision" : "current revision"} ${String(comparableRevision ?? "unknown")})`
       : null;
   useEffect(() => {
     if (number !== undefined && onStale) {
@@ -639,11 +718,19 @@ export function OperationDiff({
         (revisionChainMismatch || comparableRevision !== payload.revision) && (
           <p className="warning">
             {revisionChainMismatch
-              ? "An earlier deliverable change has an unexpected revision; approval will be checked by the server."
-              : `This target changed: expected revision ${String(payload.revision)}, ${action.startsWith("deliverable.") ? "current proposal revision" : "current revision"} ${String(comparableRevision)}. Approval will be checked by the server.`}
+              ? `An earlier ${chainedKind ?? "chained"} change has an unexpected revision; approval will be checked by the server.`
+              : `This target changed: expected revision ${String(payload.revision)}, ${chainedKind ? "current proposal revision" : "current revision"} ${String(comparableRevision)}. Approval will be checked by the server.`}
           </p>
         )}
       {isNew && !created && <p className="muted">New record</p>}
+      {action.startsWith("gate.") && (
+        <GateOperationSummary
+          action={action}
+          payload={payload}
+          current={before}
+          staged={priorGate?.(target)}
+        />
+      )}
       {action.startsWith("deliverable.") && (
         <DeliverableOperationSummary
           action={action}
@@ -682,6 +769,73 @@ export function OperationDiff({
         </div>
       ))}
     </article>
+  );
+}
+
+function GateOperationSummary({
+  action,
+  payload,
+  current,
+  staged,
+}: {
+  action: string;
+  payload: Record<string, unknown>;
+  current?: Record<string, unknown> | null;
+  staged?: Record<string, unknown>;
+}) {
+  const data = { ...(current ?? {}), ...(staged ?? {}), ...payload } as Record<
+    string,
+    unknown
+  >;
+  const actionText: Record<string, string> = {
+    "gate.create": "Creates a pre-completion gate",
+    "gate.update": "Updates a pre-completion gate",
+    "gate.pass": "Passes a manual pre-completion gate",
+    "gate.reopen": "Reopens a pre-completion gate",
+  };
+  const title = typeof data.title === "string" ? data.title : "";
+  const stepId = typeof data.stepId === "string" ? data.stepId : "";
+  const roadmapId = typeof data.roadmapId === "string" ? data.roadmapId : "";
+  const stepTitle = typeof data.stepTitle === "string" ? data.stepTitle : "";
+  const kind = typeof data.kind === "string" ? data.kind : "manual";
+  const humanOnly = Boolean(data.humanOnly);
+  const linked =
+    data.target && typeof data.target === "object"
+      ? (data.target as Record<string, unknown>)
+      : null;
+  const note = typeof payload.note === "string" ? payload.note.trim() : "";
+  const reason =
+    typeof payload.reason === "string" ? payload.reason.trim() : "";
+
+  return (
+    <div className="gate-proposal-summary">
+      <p>
+        <strong>{actionText[action] ?? action}</strong>
+        {title ? `: ${title}` : ""}
+        {humanOnly ? " · Human-only" : ""}
+        {kind ? ` · ${kind}` : ""}
+      </p>
+      {stepId && (
+        <p className="muted">
+          Step:{" "}
+          {roadmapId ? (
+            <a href={`#roadmaps/${roadmapId}/${stepId}`}>
+              {stepTitle || stepId}
+            </a>
+          ) : (
+            stepTitle || stepId
+          )}
+        </p>
+      )}
+      {linked && typeof linked.type === "string" && typeof linked.id === "string" && (
+        <p className="muted">
+          Linked {linked.type}:{" "}
+          {typeof linked.title === "string" ? linked.title : linked.id}
+        </p>
+      )}
+      {note && <p>Verification note: {note}</p>}
+      {reason && <p>Reason: {reason}</p>}
+    </div>
   );
 }
 

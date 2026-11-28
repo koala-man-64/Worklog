@@ -6,12 +6,13 @@ restores.
 
 ## Upgrade
 
-For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1 to 38 database and upgrades it to version 39 in one transaction.
+For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1 to 39 database and upgrades it to version 40 in one transaction.
 
 `./scripts/Run.ps1` does the stop, backup, setup and start in one step after you update the checkout, passing the same `-DataDir` and `-Port` to each. Its backup is taken before the new version first starts, so it is the pre-upgrade backup; if the stop or backup fails, it ends before setup. It runs Setup's shared-folder check first, so a refusal leaves Worklog running. It then asks `check` which checkout last served the data folder, and refuses one another checkout served before it stops anything: run it from the checkout that serves your data. After you move or re-clone that checkout, the first start from the new place needs `-Force` (`./scripts/Run.ps1 -Force`, or `./scripts/Worklog.ps1 start -Force`), which records the new checkout.
 
 ## What each version changes
 
+- **Version 40** adds roadmap step completion gates (`step_gates`), supporting manual checks and record-linked auto-evaluated gates (`step`, `deliverable`, `ticket`, `question`) with optional `human_only` protection and human waiver reasons. The upgrade starts `step_gates` empty and preserves all existing roadmaps, steps, deliverables and progress.
 - **Version 39** adds roadmap deliverables, their links to roadmap steps, and revision-scoped acceptance records. The upgrade starts the new tables empty and preserves existing roadmaps, steps, and outcomes.
 - **Version 38** adds a caller-created worktree path and a physical path claim shared across all repositories. Existing leases keep their original paths. Worklog recognizes managed checkouts recorded before the upgrade when checking a new claim.
 - **Version 37** adds typed dependencies for repositories, roadmap steps, work items, tickets and agents. Shared prerequisites and context-scoped agent waits start empty; existing repository catalog links stay as they are, and the upgrade changes no existing record.
@@ -46,6 +47,8 @@ For an upgrade, stop Worklog, make a manual backup with the installed version, u
 ## Roll back
 
 Keep the previous version and its manual backup until verification succeeds. To roll back, stop Worklog, switch to the previous version and run its setup, then use that version’s `restore` command with the pre-upgrade backup. Start and check Worklog again. Restoring returns the data to the time of the snapshot, creates a new data identity, and revokes the restored credentials.
+
+To return from version 40 to version 39, restore the pre-upgrade backup using version 39. Step gates added after the upgrade are not in that backup.
 
 To return from version 39 to version 38, restore the pre-upgrade backup using version 38. Deliverables, step links, and acceptance records added after the upgrade are not in that backup.
 

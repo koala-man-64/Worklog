@@ -6,6 +6,7 @@ import json
 import uuid
 from bisect import bisect_left
 
+from . import gates
 from .common import AppError, event, now, read_events, require_revision, uid
 from .repository_links import (
     linked_repositories,
@@ -90,7 +91,7 @@ def _step(row):
             "outcome": row["outcome"], "parentId": row["parent_id"], "position": row["position"],
             "status": row["status"], "revision": row["revision"],
             "retired": bool(row["retired"]), "workClass": row["work_class"],
-            "repositoryIds": [], "waveIds": []}
+            "repositoryIds": [], "waveIds": [], "gateSummary": gates.empty_summary()}
 
 
 def _roadmap_step_waves(conn, roadmap_id):
@@ -111,7 +112,7 @@ def _roadmap_step_waves(conn, roadmap_id):
 
 
 def _hydrate_step(conn, step):
-    """Attach repositoryIds and waveIds to one step record."""
+    """Attach repositoryIds, waveIds, and gateSummary to one step record."""
     repos = linked_repositories(conn, "step", [step["id"]]).get(step["id"], [])
     waves = [
         r[0]
@@ -121,7 +122,12 @@ def _hydrate_step(conn, step):
             (step["id"],),
         )
     ]
-    return {**step, "repositoryIds": repos, "waveIds": waves}
+    summary = (
+        gates.empty_summary()
+        if step["retired"]
+        else gates.summaries_by_step(conn, [step["id"]]).get(step["id"], gates.empty_summary())
+    )
+    return {**step, "repositoryIds": repos, "waveIds": waves, "gateSummary": summary}
 
 
 def _kept_in_order(values):
@@ -461,18 +467,30 @@ def _steps(conn, identifier, retired=False, text_of=None):
             st["waveIds"] = waves.get(st["id"], [])
             steps.append(st)
     active = {s["id"]: s for s in steps if not s["retired"]}
+    gate_summaries = gates.summaries_by_step(conn, active)
+    for sid, st in active.items():
+        st["gateSummary"] = gate_summaries.get(sid, gates.empty_summary())
     children: dict[str | None, list[dict]] = {}
     for step in active.values():
         children.setdefault(step["parentId"], []).append(step)
 
     def derive(step):
         descendants = children.get(step["id"], [])
+        summary = step["gateSummary"]
         if descendants:
-            states = [derive(child) for child in descendants]
-            step["status"] = ("done" if all(s == "done" for s in states) else
-                              "blocked" if "blocked" in states else
-                              "doing" if any(s in {"doing", "done"} for s in states) else "open")
-        return step["status"]
+            results = [derive(child) for child in descendants]
+            states = [status for status, _ in results]
+            all_eff_done = all(eff_done for _, eff_done in results)
+            if all_eff_done and summary["blocking"] == 0:
+                step["status"] = "done"
+            elif "blocked" in states:
+                step["status"] = "blocked"
+            elif any(s in {"doing", "done"} for s in states):
+                step["status"] = "doing"
+            else:
+                step["status"] = "open"
+            return step["status"], step["status"] == "done"
+        return step["status"], (step["status"] == "done" and summary["blocking"] == 0)
 
     for root in children.get(None, []):
         derive(root)
@@ -587,6 +605,7 @@ class PlanService:
                 "workClass": step["workClass"],
                 "repositoryIds": step["repositoryIds"],
                 "waveId": active_wave.get(step["id"]),
+                "gateSummary": step["gateSummary"],
             } for step in outline_order(_steps(conn, identifier))]
             return {"id": roadmap["id"], "title": roadmap["title"], "archived": roadmap["archived"],
                     "revision": roadmap["revision"], "steps": steps}
@@ -619,6 +638,7 @@ class PlanService:
                 step.setdefault("workClass", "")  # saved before steps had work classes (v35)
                 step.setdefault("repositoryIds", [])
                 step.setdefault("waveIds", [])
+                step.setdefault("gateSummary", gates.empty_summary())
             return {"number": row["number"], "createdAt": row["created_at"],
                     "note": row["note"], **snapshot}
 
@@ -708,8 +728,11 @@ class PlanService:
         row = _row(conn, identifier)
         number = conn.execute("SELECT COALESCE(MAX(number),0)+1 FROM roadmap_versions WHERE roadmap_id=?",
                               (identifier,)).fetchone()[0]
-        snapshot = {"title": row["title"], "overview": row["overview"],
-                    "steps": _steps(conn, identifier)}
+        snapshot = {
+            "title": row["title"],
+            "overview": row["overview"],
+            "steps": [{k: v for k, v in step.items() if k != "gateSummary"} for step in _steps(conn, identifier)],
+        }
         conn.execute("INSERT INTO roadmap_versions(roadmap_id,number,created_at,note,snapshot) VALUES(?,?,?,?,?)",
                      (identifier, number, now(), note, json.dumps(snapshot)))
         return number
@@ -754,6 +777,8 @@ class PlanService:
             event(conn, actor, "step.restore" if old and old["retired"] else "step.revise" if old else "step.create",
                   step["id"], before, _hydrate_step(conn, _step(self.get_step(conn, step["id"]))))
             changed.append(step["id"])
+        if changed:
+            gates.validate_step_hierarchy_cycles(conn, identifier)
         return changed
 
     def _update_step(self, conn, actor, payload):
@@ -953,7 +978,7 @@ class PlanService:
         after_parent = _hydrate_step(conn, _step(self.get_step(conn, identifier)))
         states = [ch["status"] for ch in created_children]
         after_parent["status"] = (
-            "done" if all(s == "done" for s in states)
+            "done" if all(s == "done" for s in states) and after_parent["gateSummary"]["blocking"] == 0
             else "blocked" if "blocked" in states
             else "doing" if any(s in {"doing", "done"} for s in states)
             else "open"
@@ -1023,6 +1048,7 @@ class PlanService:
                     (row["roadmap_id"], parent_id, identifier, pos),
                 )
         conn.execute("UPDATE steps SET parent_id=?,position=?,revision=revision+1 WHERE id=?", (parent_id, pos, identifier))
+        gates.validate_step_hierarchy_cycles(conn, row["roadmap_id"])
         conn.execute("UPDATE roadmaps SET revision=revision+1,updated_at=? WHERE id=?", (now(), row["roadmap_id"]))
         after = _hydrate_step(conn, _step(self.get_step(conn, identifier)))
         event(conn, actor, "step.move", identifier, before, after)
@@ -1043,6 +1069,26 @@ class PlanService:
             status = payload.get("status")
             if status not in STATUSES:
                 raise AppError(422, "validation", "Invalid progress status")
+            if status == "done":
+                blocking = gates.blocking_for_step(conn, identifier)
+                if blocking:
+                    raise AppError(
+                        409,
+                        "open_gates",
+                        f"Cannot mark step done while {len(blocking)} gate(s) remain unsatisfied",
+                        {
+                            "stepId": identifier,
+                            "gates": [
+                                {
+                                    "id": g["id"],
+                                    "title": g["title"],
+                                    "state": g["state"],
+                                    "humanOnly": g["humanOnly"],
+                                }
+                                for g in blocking
+                            ],
+                        },
+                    )
             before = _hydrate_step(conn, _step(row))
             conn.execute("UPDATE steps SET status=?,revision=revision+1 WHERE id=?", (status, identifier))
             # Progress is the step's, guarded by its revision: the roadmap's revision guards its

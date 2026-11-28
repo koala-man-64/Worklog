@@ -298,6 +298,17 @@ class World:
         path = f"/deliverables/{deliverable['id']}"
         ready = self.write(p, "POST", path + "/submit", {"revision": deliverable["revision"]})
         self.write(p, "POST", path + "/accept", {"revision": ready["revision"], "note": "Build reviewed"})
+        gate = self.write(p, "POST", f"/steps/{child}/gates", {
+            "title": "Security review signed off",
+            "criteria": "Confirm auth boundary before marking done.",
+            "kind": "approval",
+            "humanOnly": True,
+        })
+        ids["gate"] = gate["id"]
+        self.write(p, "POST", f"/gates/{gate['id']}/pass", {
+            "revision": gate["revision"],
+            "note": "Reviewed auth boundary",
+        })
 
 
 # A read's other forms, each its own golden file: the context's summary is its default (audit 3.5).
@@ -313,7 +324,7 @@ def concrete(template: str, ids: dict[str, str], today: str) -> str:
              "/search": "?q=parser", "/repositories/resolve": "?url=https://github.com/example/worklog"}
     by_prefix = [("/work-items/", "item"), ("/notes/", "note"), ("/links/", "link"),
                  ("/references/", "reference"), ("/attachments/", "attachment"), ("/roadmaps/", "roadmap"),
-                 ("/deliverables/", "deliverable"), ("/steps/", "step"), ("/questions/", "question"), ("/decisions/", "decision"),
+                 ("/deliverables/", "deliverable"), ("/gates/", "gate"), ("/steps/", "step"), ("/questions/", "question"), ("/decisions/", "decision"),
                  ("/github/", "github"), ("/chats/", "chat"), ("/people/", "person"), ("/resources/", "resource"),
                  ("/repositories/", "repository"), ("/waves/", "wave"),
                  ("/dependencies/roadmaps/", "roadmap"), ("/dependencies/", "dependency"),

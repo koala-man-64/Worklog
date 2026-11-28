@@ -6,7 +6,7 @@ import json
 import logging
 from contextlib import nullcontext
 
-from . import proposal_names, proposal_targets, scratchpad
+from . import gates, proposal_names, proposal_targets, scratchpad
 from .common import (
     NOTE_LIMIT,
     AppError,
@@ -564,7 +564,9 @@ class ProposalService:
             if verb == "submit" and approval_required(connection):
                 # A value its model refuses, or a file it cannot attach, would only wait for the
                 # person to reject it. With approval off, applying it below makes the same checks.
-                self._check_files(connection, row, self._check_values(row))
+                checked = self._check_values(row)
+                self._check_files(connection, row, checked)
+                self._check_gates(connection, checked)
             if verb == "approve":
                 self._apply(connection, row)
             result = self._advance(connection, identifier, verb, actor, before)
@@ -659,6 +661,33 @@ class ProposalService:
             except AppError as exc:
                 raise _numbered(exc, number, len(operations), action) from exc
 
+    @staticmethod
+    def _check_gates(connection, operations):
+        human_only_names: set[str] = set()
+        linked_names: set[str] = set()
+        for number, operation in enumerate(operations, 1):
+            action, payload = operation["action"], operation["payload"]
+            try:
+                if action == "gate.create" and isinstance(payload.get("id"), str):
+                    if payload.get("humanOnly"):
+                        human_only_names.add(payload["id"])
+                    if payload.get("target") is not None:
+                        linked_names.add(payload["id"])
+                elif action in {"gate.update", "gate.pass", "gate.reopen"}:
+                    gid = payload.get("id")
+                    if isinstance(gid, str) and gid in human_only_names:
+                        raise AppError(403, "agent_scope", "Only the person can update, pass, or reopen a human-only gate")
+                    if action == "gate.pass" and isinstance(gid, str) and gid in linked_names:
+                        raise AppError(
+                            422, "validation",
+                            "This gate follows its linked record; complete the linked record or ask the person to waive it",
+                        )
+                    gates.check_proposal_operation(connection, action, payload)
+                    if action == "gate.update" and isinstance(gid, str) and payload.get("humanOnly"):
+                        human_only_names.add(gid)
+            except AppError as exc:
+                raise _numbered(exc, number, len(operations), action) from exc
+
     def _advance(self, connection, identifier, verb, actor, before):
         state = {
             "submit": "submitted",
@@ -686,6 +715,7 @@ class ProposalService:
         forecast = Forecast(conn)
         waves: dict[str, dict | None] = {}
         deliverables: dict[str, dict | None] = {}
+        gates_seen: dict[str, dict | None] = {}
         conflicts = []
         for number, op in enumerate(operations, 1):
             action, payload = op["action"], op["payload"]
@@ -778,6 +808,34 @@ class ProposalService:
                         })
                 else:
                     deliverable["revision"] += 1
+            elif action in {"gate.update", "gate.pass", "gate.reopen"}:
+                identity = payload.get("id")
+                if not isinstance(identity, str):
+                    continue
+                if identity not in gates_seen:
+                    grow = conn.execute(
+                        "SELECT g.id,s.roadmap_id,g.title,g.revision FROM step_gates g "
+                        "JOIN steps s ON s.id=g.step_id WHERE g.id=?",
+                        (identity,),
+                    ).fetchone()
+                    gates_seen[identity] = dict(grow) if grow else None
+                gate = gates_seen[identity]
+                if gate is None:
+                    continue
+                if gate["revision"] != payload.get("revision"):
+                    if roadmap_id is None or gate["roadmap_id"] == roadmap_id:
+                        conflicts.append({
+                            "operation": number,
+                            "action": action,
+                            "targetType": "gate",
+                            "targetId": identity,
+                            "targetTitle": gate["title"],
+                            "roadmapId": gate["roadmap_id"],
+                            "expectedRevision": payload.get("revision"),
+                            "currentRevision": gate["revision"],
+                        })
+                else:
+                    gate["revision"] += 1
             elif action in {"wave.update", "wave.steps"}:
                 wid = payload.get("id")
                 if not isinstance(wid, str):

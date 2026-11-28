@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setDataContext } from "./api";
 import { RoadmapExecution } from "./RoadmapExecution";
+import { EMPTY_GATE_SUMMARY } from "./StepGates";
 import type { Repository, RoadmapDispatch } from "./apiTypes";
 
 const REPO_A: Repository = {
@@ -209,6 +210,7 @@ const dispatchFixture: RoadmapDispatch = {
           queuePosition: 0,
           phasePath: [{ id: "phase-1", title: "Phase 1: Core" }],
           activeAgents: [],
+          gateSummary: EMPTY_GATE_SUMMARY,
         },
       ],
       competingWip: [
@@ -225,6 +227,7 @@ const dispatchFixture: RoadmapDispatch = {
           queuePosition: null,
           phasePath: [{ id: "phase-1", title: "Phase 1: Core" }],
           activeAgents: [],
+          gateSummary: EMPTY_GATE_SUMMARY,
         },
       ],
       queued: [
@@ -241,6 +244,7 @@ const dispatchFixture: RoadmapDispatch = {
           queuePosition: 1,
           phasePath: [{ id: "phase-1", title: "Phase 1: Core" }],
           activeAgents: [],
+          gateSummary: EMPTY_GATE_SUMMARY,
         },
       ],
       blocked: [],
@@ -264,6 +268,7 @@ const dispatchFixture: RoadmapDispatch = {
       queuePosition: null,
       phasePath: [{ id: "phase-1", title: "Phase 1: Core" }],
       activeAgents: [],
+      gateSummary: EMPTY_GATE_SUMMARY,
     },
   ],
   unassignedLeaves: [
@@ -280,6 +285,7 @@ const dispatchFixture: RoadmapDispatch = {
       queuePosition: null,
       phasePath: [{ id: "phase-1", title: "Phase 1: Core" }],
       activeAgents: [],
+      gateSummary: EMPTY_GATE_SUMMARY,
       suggestedRepoIds: ["repo-b"],
     },
   ],
@@ -298,6 +304,7 @@ const dispatchFixture: RoadmapDispatch = {
         queuePosition: null,
         phasePath: [{ id: "phase-1", title: "Phase 1: Core" }],
         activeAgents: [],
+        gateSummary: EMPTY_GATE_SUMMARY,
       },
     ],
     phases: [

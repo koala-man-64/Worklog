@@ -1798,6 +1798,161 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/roadmaps/{identity}/gates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Roadmap Gates */
+        get: operations["roadmap_gates_api_v1_roadmaps__identity__gates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/steps/{identity}/gates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Step Gates */
+        get: operations["step_gates_api_v1_steps__identity__gates_get"];
+        put?: never;
+        /** Gate Create */
+        post: operations["gate_create_api_v1_steps__identity__gates_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gates/{identity}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Gate Detail */
+        get: operations["gate_detail_api_v1_gates__identity__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Gate Update */
+        patch: operations["gate_update_api_v1_gates__identity__patch"];
+        trace?: never;
+    };
+    "/api/v1/gates/{identity}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Gate History */
+        get: operations["gate_history_api_v1_gates__identity__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gates/{identity}/pass": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Gate Pass */
+        post: operations["gate_pass_api_v1_gates__identity__pass_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gates/{identity}/waive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Gate Waive */
+        post: operations["gate_waive_api_v1_gates__identity__waive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gates/{identity}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Gate Reopen */
+        post: operations["gate_reopen_api_v1_gates__identity__reopen_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gates/{identity}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Gate Archive */
+        post: operations["gate_archive_api_v1_gates__identity__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gates/{identity}/recover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Gate Recover */
+        post: operations["gate_recover_api_v1_gates__identity__recover_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/roadmaps/{identity}/dispatch": {
         parameters: {
             query?: never;
@@ -5141,6 +5296,7 @@ export interface components {
             repositoryIds: string[];
             /** Waveids */
             waveIds: string[];
+            gateSummary: components["schemas"]["GateSummary"];
             /** Roadmapid */
             roadmapId: string;
             /** Roadmaprevision */
@@ -6347,6 +6503,7 @@ export interface components {
             phasePath: components["schemas"]["DispatchPhaseLink"][];
             /** Activeagents */
             activeAgents: components["schemas"]["DispatchStepAgent"][];
+            gateSummary: components["schemas"]["GateSummary"];
         };
         /** DispatchSummary */
         DispatchSummary: {
@@ -6395,6 +6552,7 @@ export interface components {
             phasePath: components["schemas"]["DispatchPhaseLink"][];
             /** Activeagents */
             activeAgents: components["schemas"]["DispatchStepAgent"][];
+            gateSummary: components["schemas"]["GateSummary"];
             /** Suggestedrepoids */
             suggestedRepoIds: string[];
         };
@@ -6551,6 +6709,140 @@ export interface components {
             freezeStatus: "open" | "batching" | "frozen";
             /** Frozenref */
             frozenRef: string;
+        };
+        /** GateCreate */
+        GateCreate: {
+            /** Title */
+            title: string;
+            /**
+             * Criteria
+             * @default
+             */
+            criteria: string;
+            /** Kind */
+            kind?: ("manual" | "approval" | "verification" | "prerequisite") | null;
+            /**
+             * Humanonly
+             * @default false
+             */
+            humanOnly: boolean;
+            target?: components["schemas"]["GateTargetRef"] | null;
+            /** Position */
+            position?: number | null;
+        };
+        /** GatePass */
+        GatePass: {
+            /** Revision */
+            revision: number;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+        };
+        /** GateReopen */
+        GateReopen: {
+            /** Revision */
+            revision: number;
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * GateResolution
+         * @description Who passed or waived a gate, when, and with what note or reason.
+         */
+        GateResolution: {
+            /** Resolvedat */
+            resolvedAt: string;
+            /** Actorid */
+            actorId: string;
+            /** Actorlabel */
+            actorLabel: string;
+            /**
+             * Actorkind
+             * @enum {string}
+             */
+            actorKind: "human" | "agent";
+            /** Proposalid */
+            proposalId: string | null;
+            /** Note */
+            note: string;
+        };
+        /**
+         * GateSummary
+         * @description Counts of active pre-completion gates on one roadmap step.
+         */
+        GateSummary: {
+            /** Total */
+            total: number;
+            /** Open */
+            open: number;
+            /** Passed */
+            passed: number;
+            /** Waived */
+            waived: number;
+            /** Unavailable */
+            unavailable: number;
+            /** Blocking */
+            blocking: number;
+            /** Humanonlyblocking */
+            humanOnlyBlocking: number;
+        };
+        /**
+         * GateTarget
+         * @description The Worklog record a linked gate auto-evaluates against.
+         */
+        GateTarget: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "step" | "deliverable" | "ticket" | "question";
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Status */
+            status: string;
+            /** Available */
+            available: boolean;
+            /** Roadmapid */
+            roadmapId: string | null;
+            /** Href */
+            href: string | null;
+        };
+        /** GateTargetRef */
+        GateTargetRef: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "step" | "deliverable" | "ticket" | "question";
+            /** Id */
+            id: string;
+        };
+        /** GateUpdate */
+        GateUpdate: {
+            /** Revision */
+            revision: number;
+            /** Title */
+            title?: string | null;
+            /** Criteria */
+            criteria?: string | null;
+            /** Kind */
+            kind?: ("manual" | "approval" | "verification" | "prerequisite") | null;
+            /** Humanonly */
+            humanOnly?: boolean | null;
+            target?: components["schemas"]["GateTargetRef"] | null;
+            /** Position */
+            position?: number | null;
+        };
+        /** GateWaive */
+        GateWaive: {
+            /** Revision */
+            revision: number;
+            /** Reason */
+            reason: string;
         };
         /** GithubRefCreate */
         GithubRefCreate: {
@@ -7656,7 +7948,7 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "repository.create" | "repository.update" | "repository.archive" | "repository.recover" | "dependency.create" | "dependency.confirm" | "dependency.archive" | "item.create" | "item.update" | "item.archive" | "item.recover" | "entry.upsert" | "note.create" | "note.update" | "roadmap.create" | "roadmap.revise" | "roadmap.move" | "progress.set" | "step.update" | "step.create" | "step.split" | "step.move" | "deliverable.create" | "deliverable.update" | "deliverable.submit" | "deliverable.accept" | "deliverable.reopen" | "wave.create" | "wave.update" | "wave.steps" | "person.create" | "person.update" | "person.archive" | "person.recover" | "person.link" | "person.unlink" | "link.create" | "link.update" | "link.archive" | "link.recover" | "attachment.create" | "chat.create" | "chat.update" | "chat.archive" | "chat.recover" | "github.create" | "github.update" | "github.archive" | "github.recover" | "question.create" | "question.update" | "question.archive" | "question.recover" | "decision.create" | "decision.update" | "decision.archive" | "decision.recover" | "resource.create" | "resource.update" | "resource.archive" | "resource.recover" | "ticket.create" | "ticket.update";
+            action: "repository.create" | "repository.update" | "repository.archive" | "repository.recover" | "dependency.create" | "dependency.confirm" | "dependency.archive" | "item.create" | "item.update" | "item.archive" | "item.recover" | "entry.upsert" | "note.create" | "note.update" | "roadmap.create" | "roadmap.revise" | "roadmap.move" | "progress.set" | "step.update" | "step.create" | "step.split" | "step.move" | "gate.create" | "gate.update" | "gate.pass" | "gate.reopen" | "deliverable.create" | "deliverable.update" | "deliverable.submit" | "deliverable.accept" | "deliverable.reopen" | "wave.create" | "wave.update" | "wave.steps" | "person.create" | "person.update" | "person.archive" | "person.recover" | "person.link" | "person.unlink" | "link.create" | "link.update" | "link.archive" | "link.recover" | "attachment.create" | "chat.create" | "chat.update" | "chat.archive" | "chat.recover" | "github.create" | "github.update" | "github.archive" | "github.recover" | "question.create" | "question.update" | "question.archive" | "question.recover" | "decision.create" | "decision.update" | "decision.archive" | "decision.recover" | "resource.create" | "resource.update" | "resource.archive" | "resource.recover" | "ticket.create" | "ticket.update";
             /** Payload */
             payload: {
                 [key: string]: unknown;
@@ -7683,6 +7975,7 @@ export interface components {
             repositoryIds: string[];
             /** Waveid */
             waveId: string | null;
+            gateSummary: components["schemas"]["GateSummary"];
         };
         /** OutputNamed */
         OutputNamed: {
@@ -8580,6 +8873,7 @@ export interface components {
             repositoryIds: string[];
             /** Waveids */
             waveIds: string[];
+            gateSummary: components["schemas"]["GateSummary"];
         };
         /**
          * Presence
@@ -9910,6 +10204,73 @@ export interface components {
             unassignedLeaves: components["schemas"]["DispatchUnassignedStepCard"][];
             gates: components["schemas"]["DispatchGates"];
         };
+        /**
+         * RoadmapGate
+         * @description One step gate listed at the roadmap level, with step status and phase context.
+         */
+        RoadmapGate: {
+            /** Id */
+            id: string;
+            /** Stepid */
+            stepId: string;
+            /** Roadmapid */
+            roadmapId: string;
+            /** Steptitle */
+            stepTitle: string;
+            /** Title */
+            title: string;
+            /** Criteria */
+            criteria: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "manual" | "approval" | "verification" | "prerequisite";
+            /** Humanonly */
+            humanOnly: boolean;
+            target: components["schemas"]["GateTarget"] | null;
+            /**
+             * Storedstatus
+             * @enum {string}
+             */
+            storedStatus: "open" | "passed" | "waived";
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "open" | "passed" | "waived" | "unavailable";
+            /** Satisfied */
+            satisfied: boolean;
+            /** Autoevaluated */
+            autoEvaluated: boolean;
+            resolution: components["schemas"]["GateResolution"] | null;
+            /** Position */
+            position: number;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Stepstatus */
+            stepStatus: string;
+            /** Isparent */
+            isParent: boolean;
+            /** Phaseid */
+            phaseId: string;
+            /** Phasetitle */
+            phaseTitle: string;
+        };
+        /** RoadmapGates */
+        RoadmapGates: {
+            /** Items */
+            items: components["schemas"]["RoadmapGate"][];
+            /** Total */
+            total: number;
+            summary: components["schemas"]["GateSummary"];
+        };
         /** RoadmapListed */
         RoadmapListed: {
             /** Id */
@@ -10052,6 +10413,7 @@ export interface components {
             repositoryIds: string[];
             /** Waveids */
             waveIds: string[];
+            gateSummary: components["schemas"]["GateSummary"];
             /** Notes */
             notes: components["schemas"]["Note"][];
             /** Attachments */
@@ -10342,6 +10704,7 @@ export interface components {
             repositoryIds: string[];
             /** Waveids */
             waveIds: string[];
+            gateSummary: components["schemas"]["GateSummary"];
             /** Roadmapid */
             roadmapId: string;
         };
@@ -10680,6 +11043,7 @@ export interface components {
             repositoryIds: string[];
             /** Waveids */
             waveIds: string[];
+            gateSummary: components["schemas"]["GateSummary"];
             /** Notes */
             notes: components["schemas"]["Note"][];
             /** Attachments */
@@ -10694,6 +11058,8 @@ export interface components {
             siblings: components["schemas"]["SiblingStep"][];
             /** Chats */
             chats: components["schemas"]["TrackedChat"][];
+            /** Gates */
+            gates: components["schemas"]["StepGate"][];
         };
         /**
          * StepContextTag
@@ -10756,6 +11122,65 @@ export interface components {
              * @enum {string}
              */
             workClass: "" | "stabilization" | "critical_path" | "standard" | "refactor" | "gate";
+        };
+        /**
+         * StepGate
+         * @description One pre-completion gate attached to a roadmap step, with live effective state.
+         */
+        StepGate: {
+            /** Id */
+            id: string;
+            /** Stepid */
+            stepId: string;
+            /** Roadmapid */
+            roadmapId: string;
+            /** Steptitle */
+            stepTitle: string;
+            /** Title */
+            title: string;
+            /** Criteria */
+            criteria: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "manual" | "approval" | "verification" | "prerequisite";
+            /** Humanonly */
+            humanOnly: boolean;
+            target: components["schemas"]["GateTarget"] | null;
+            /**
+             * Storedstatus
+             * @enum {string}
+             */
+            storedStatus: "open" | "passed" | "waived";
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "open" | "passed" | "waived" | "unavailable";
+            /** Satisfied */
+            satisfied: boolean;
+            /** Autoevaluated */
+            autoEvaluated: boolean;
+            resolution: components["schemas"]["GateResolution"] | null;
+            /** Position */
+            position: number;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+        };
+        /** StepGates */
+        StepGates: {
+            /** Items */
+            items: components["schemas"]["StepGate"][];
+            /** Total */
+            total: number;
+            summary: components["schemas"]["GateSummary"];
         };
         /**
          * StepMove
@@ -16151,6 +16576,383 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeliverableDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    roadmap_gates_api_v1_roadmaps__identity__gates_get: {
+        parameters: {
+            query?: {
+                archived?: boolean;
+                onlyOpen?: boolean;
+            };
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoadmapGates"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    step_gates_api_v1_steps__identity__gates_get: {
+        parameters: {
+            query?: {
+                archived?: boolean;
+            };
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepGates"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    gate_create_api_v1_steps__identity__gates_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GateCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepGate"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    gate_detail_api_v1_gates__identity__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepGate"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    gate_update_api_v1_gates__identity__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GateUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepGate"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    gate_history_api_v1_gates__identity__history_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["History"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    gate_pass_api_v1_gates__identity__pass_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GatePass"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepGate"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    gate_waive_api_v1_gates__identity__waive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GateWaive"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepGate"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    gate_reopen_api_v1_gates__identity__reopen_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GateReopen"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepGate"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    gate_archive_api_v1_gates__identity__archive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Expected"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepGate"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    gate_recover_api_v1_gates__identity__recover_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Expected"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepGate"];
                 };
             };
             /** @description Validation Error */

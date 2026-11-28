@@ -36,8 +36,8 @@ def test_v38_upgrade_adds_deliverable_tables_and_preserves_existing_plan(tmp_pat
     Database(db_path).initialize()
 
     after_version, after_shape, after = contents(db_path)
-    assert (after_version, after_shape) == (39, sealed.current())
-    new_tables = {"deliverables", "deliverable_steps", "deliverable_acceptances"}
+    assert (after_version, after_shape) == (40, sealed.current())
+    new_tables = {"deliverables", "deliverable_steps", "deliverable_acceptances", "step_gates"}
     assert set(after) - set(before) == new_tables
     assert all(after[table] == [] for table in new_tables)
     assert {table: rows for table, rows in after.items() if table not in new_tables} == before

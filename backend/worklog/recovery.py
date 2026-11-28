@@ -29,6 +29,7 @@ REQUIRED_TABLES = frozenset(
      "receipts", "file_references", "search_index", "roadmap_versions"}
 )
 DELIVERABLE_TABLES = frozenset({"deliverables", "deliverable_steps", "deliverable_acceptances"})
+GATE_TABLES = frozenset({"step_gates"})
 
 # Every released schema, sealed: the digest of each shape a version shipped in, over its normalized
 # sqlite_master. A digest covers table definitions, constraints, indexes and FTS shadows, never
@@ -38,6 +39,7 @@ DELIVERABLE_TABLES = frozenset({"deliverables", "deliverable_steps", "deliverabl
 # digest against it, so a schema change needs a new version, its upgrade, the same change in
 # schema.BASELINE and a new seal.
 SEALED_SCHEMAS: dict[int, frozenset[str]] = {
+    40: frozenset({"c1ee1d4c7267c2083a1fdb7a5fcec90e5c6d3283aa14219a7924cbea01101487"}),  # roadmap step gates
     39: frozenset({"e98f34137635987ea507222fcaf81eedd978c3ca5bb7afce4b30d601b86a755f"}),  # roadmap deliverables and acceptance history
     38: frozenset({"4ba40c9a56f6d482c6e776904f88db74654b1d694196f04eadb6fe7d9b04b9c2"}),  # caller worktree lease claims
     1: frozenset({
@@ -173,7 +175,11 @@ def validate_database(path: Path | str, *, require_current: bool = True) -> None
                 if version not in UPGRADABLE_VERSIONS | {SCHEMA_VERSION}:
                     raise ValueError(f"Unsupported database schema version {version}; expected 1 to {SCHEMA_VERSION}")
                 tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-                required = REQUIRED_TABLES | (DELIVERABLE_TABLES if version >= 39 else frozenset())
+                required = (
+                    REQUIRED_TABLES
+                    | (DELIVERABLE_TABLES if version >= 39 else frozenset())
+                    | (GATE_TABLES if version >= 40 else frozenset())
+                )
                 missing = required - tables
                 if missing:
                     raise ValueError("Database missing expected tables: " + ", ".join(sorted(missing)))

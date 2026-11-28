@@ -67,7 +67,7 @@ def test_a_clean_database_reports_nothing_and_is_not_changed(world):
         reader.execute("ROLLBACK")
     assert report["ok"] is True
     assert {name: check["problems"] for name, check in report["checks"].items()} == {
-        "integrity": 0, "references": 0, "dependencies": 0, "steps": 0, "trackedChats": 0,
+        "integrity": 0, "references": 0, "dependencies": 0, "stepGates": 0, "steps": 0, "trackedChats": 0,
         "searchIndex": 0, "searchKeys": 0, "leases": 0, "waves": 0}
     assert digest(database) == original
     assert list(data.glob("*doctor*")) == []

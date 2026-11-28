@@ -63,10 +63,32 @@ V36_TABLES = ("push_enrollments", "push_subscriptions", "push_deliveries")
 V37_TABLES = ("dependencies",)
 V38_COLUMNS = ("caller_worktree_path", "worktree_claim_key")
 V39_TABLES = ("deliverables", "deliverable_steps", "deliverable_acceptances")
+V40_TABLES = ("step_gates",)
+
+
+def to_v39(path):
+    """Drop the v40 step_gates table only when empty to recover the v39 fixture shape."""
+    with closing(sqlite3.connect(path)) as conn:
+        version = conn.execute("PRAGMA user_version").fetchone()[0]
+        tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        if version == 39 and not set(V40_TABLES) & tables:
+            return
+        if version != 40 or not set(V40_TABLES) <= tables:
+            raise ValueError(f"Expected a v39 or v40 schema shape, got version {version}")
+        if conn.execute("SELECT 1 FROM step_gates LIMIT 1").fetchone():
+            raise ValueError("The v40 step_gates table must be empty for the v39 fixture")
+        conn.execute("BEGIN")
+        conn.execute("DROP TABLE step_gates")
+        conn.execute("PRAGMA user_version=39")
+        conn.commit()
 
 
 def to_v38(path):
     """Drop the v39 deliverable tables only when empty to recover the v38 fixture shape."""
+    with closing(sqlite3.connect(path)) as conn:
+        version = conn.execute("PRAGMA user_version").fetchone()[0]
+    if version == 40:
+        to_v39(path)
     with closing(sqlite3.connect(path)) as conn:
         version = conn.execute("PRAGMA user_version").fetchone()[0]
         tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
@@ -86,10 +108,10 @@ def to_v38(path):
 
 
 def to_v37(path):
-    """Project a v39/v38 fixture back to v37 only while its additive records and lease fields are empty."""
+    """Project a v40/v39/v38 fixture back to v37 only while its additive records and lease fields are empty."""
     with closing(sqlite3.connect(path)) as conn:
         version = conn.execute("PRAGMA user_version").fetchone()[0]
-    if version == 39:
+    if version in {39, 40}:
         to_v38(path)
     with closing(sqlite3.connect(path)) as conn:
         version = conn.execute("PRAGMA user_version").fetchone()[0]
@@ -157,8 +179,8 @@ def to_v34(path):
 
 
 def before_v38(rows):
-    """Rows present in v37, excluding the v39 tables and empty v38 lease fields."""
-    kept = {table: values for table, values in rows.items() if table not in V39_TABLES}
+    """Rows present in v37, excluding the v39/v40 tables and empty v38 lease fields."""
+    kept = {table: values for table, values in rows.items() if table not in (*V39_TABLES, *V40_TABLES)}
     if "repository_leases" in kept:
         kept["repository_leases"] = [row[:-2] for row in kept["repository_leases"]]
     return kept
@@ -257,8 +279,8 @@ def test_v38_preserves_pathless_managed_and_historical_lease_rows(tmp_path):
     Database(db_path).initialize()
 
     version, signature, after = contents(db_path)
-    assert (version, signature) == (39, sealed.current())
-    assert all(after[table] == [] for table in V39_TABLES)
+    assert (version, signature) == (40, sealed.current())
+    assert all(after[table] == [] for table in (*V39_TABLES, *V40_TABLES))
     assert before_v38(after) == before
     assert all(row[-2:] == (None, None) for row in after["repository_leases"])
 

@@ -1675,3 +1675,174 @@ section.step-outcome > h3 {
     justify-content: flex-start;
   }
 }
+
+/* Pre-completion step gates */
+.gate-pill,
+.gate-state,
+.gate-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.gate-pill.is-blocking,
+.gate-state.is-open {
+  border-color: var(--status-doing-border);
+  background: var(--status-doing-bg);
+  color: var(--status-doing-ink);
+  font-weight: 600;
+}
+.gate-state.is-unavailable {
+  border-color: var(--status-blocked-border, #c43e3e);
+  background: var(--status-blocked-bg, #fff0f0);
+  color: var(--status-blocked-ink, #8a1f1f);
+  font-weight: 600;
+}
+.gate-pill.is-satisfied,
+.gate-state.is-passed {
+  border-color: var(--teal);
+  background: var(--teal-wash);
+  color: var(--ink);
+}
+.gate-state.is-waived {
+  color: var(--muted);
+}
+.gate-tag {
+  color: var(--muted);
+}
+.gate-tag.is-human {
+  border-color: var(--status-doing-border);
+  color: var(--ink);
+  font-weight: 600;
+}
+.gate-rollup {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+}
+.gate-rollup-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.gate-rollup-head h3 {
+  margin: 0 0 2px;
+}
+.gate-rollup-head p {
+  margin: 0;
+}
+.gate-rollup-list,
+.gate-list {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.gate-rollup-row {
+  display: grid;
+  gap: 3px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.gate-rollup-row > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.step-gates {
+  margin: 14px 0;
+}
+.gate-archived-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.gate-row {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--paper);
+}
+.gate-row.state-open,
+.gate-row.state-unavailable {
+  border-left: 3px solid var(--status-doing-border);
+}
+.gate-row.state-passed {
+  border-left: 3px solid var(--teal);
+}
+.gate-row-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.gate-row-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.gate-target-line,
+.gate-resolution {
+  margin: 0;
+  font-size: 0.86rem;
+}
+.gate-create-form,
+.gate-inline-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg);
+}
+.gate-create-form label,
+.gate-inline-form label,
+.gate-target-picker label {
+  display: grid;
+  gap: 4px;
+}
+.gate-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.gate-check-label {
+  display: flex !important;
+  align-items: center;
+  gap: 6px !important;
+  margin-top: 14px;
+}
+.gate-target-picker {
+  display: grid;
+  gap: 8px;
+}
+.gate-picked {
+  margin: 0;
+  font-size: 0.86rem;
+}
+.gate-archived-section {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.gate-archived-section h4 {
+  margin: 0 0 6px;
+}

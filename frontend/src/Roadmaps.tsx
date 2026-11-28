@@ -60,6 +60,12 @@ import {
   RoadmapDeliverablesSummary,
   StepDeliverables,
 } from "./RoadmapDeliverables";
+import {
+  EMPTY_GATE_SUMMARY,
+  GateBadge,
+  RoadmapGatesSummary,
+  StepGatesPanel,
+} from "./StepGates";
 import type {
   Answer,
   PlanStep,
@@ -334,6 +340,7 @@ export function RoadmapDetail({
   const [outlineRepoFilter, setOutlineRepoFilter] = useState("");
   const [outlineClassFilter, setOutlineClassFilter] = useState("");
   const [outlineMultiRepoOnly, setOutlineMultiRepoOnly] = useState(false);
+  const [outlineOpenGatesOnly, setOutlineOpenGatesOnly] = useState(false);
   const [address, setAddress] = useState(sub);
   const [showRetired, setShowRetired] = useState(false);
   // Collapsed steps persist per roadmap so a large plan reopens as it was left.
@@ -517,7 +524,10 @@ export function RoadmapDetail({
   const catalogRepos = reposCatalog.data?.items ?? [];
   const repoNames = new Map(catalogRepos.map((r) => [r.id, r.name]));
   const outlineFiltered = Boolean(
-    outlineRepoFilter || outlineClassFilter || outlineMultiRepoOnly,
+    outlineRepoFilter ||
+      outlineClassFilter ||
+      outlineMultiRepoOnly ||
+      outlineOpenGatesOnly,
   );
   // Asked for, retired steps show at their old places in the outline.
   const baseTree = showRetired && hasRetired ? stepTree(road.steps) : tree;
@@ -534,7 +544,9 @@ export function RoadmapDetail({
       const matchMulti =
         !outlineMultiRepoOnly ||
         (isLeaf && repos.length >= 2 && s.workClass !== "gate");
-      if (matchRepo && matchClass && matchMulti) {
+      const matchGates =
+        !outlineOpenGatesOnly || (s.gateSummary?.blocking ?? 0) > 0;
+      if (matchRepo && matchClass && matchMulti && matchGates) {
         let cur: Step | undefined = s;
         while (cur && !keep.has(cur.id)) {
           keep.add(cur.id);
@@ -625,6 +637,7 @@ export function RoadmapDetail({
                   items > 0 ||
                   placed.length > 0 ||
                   openDependencies > 0 ||
+                  (s.gateSummary?.total ?? 0) > 0 ||
                   stepRepos.length > 0 ||
                   Boolean(s.workClass)) && (
                   <span className="step-meta">
@@ -639,6 +652,7 @@ export function RoadmapDetail({
                         {items} work item{items === 1 ? "" : "s"}
                       </small>
                     )}
+                    <GateBadge summary={s.gateSummary} />
                     <DependencyCount count={openDependencies} />
                     {s.workClass && (
                       <span className={`exec-pill wc-${s.workClass}`}>
@@ -755,6 +769,17 @@ export function RoadmapDetail({
       ) : (
         <p className="muted">No description yet. Add one with Edit step.</p>
       )}
+      <StepGatesPanel
+        key={`gates-${selected.id}`}
+        roadmapId={id}
+        step={selected}
+        isParent={tree.has(selected.id)}
+        allChildrenDone={
+          tree.has(selected.id) &&
+          (tree.get(selected.id) ?? []).every((kid) => kid.status === "done")
+        }
+        disabled={road.archived}
+      />
       <StepDeliverables roadmapId={id} stepId={selected.id} />
       <DependenciesPanel
         key={selected.id}
@@ -823,6 +848,7 @@ export function RoadmapDetail({
   const statusView = (
     <>
       <RoadmapDeliverablesSummary roadmapId={id} />
+      <RoadmapGatesSummary roadmapId={id} />
       <StatusBoard
         id={id}
         road={road}
@@ -1247,6 +1273,14 @@ export function RoadmapDetail({
                           />{" "}
                           Multi-repo leaves only
                         </label>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={outlineOpenGatesOnly}
+                            onChange={(e) => setOutlineOpenGatesOnly(e.target.checked)}
+                          />{" "}
+                          Open gates only
+                        </label>
                         {outlineFiltered && (
                           <button
                             type="button"
@@ -1255,6 +1289,7 @@ export function RoadmapDetail({
                               setOutlineRepoFilter("");
                               setOutlineClassFilter("");
                               setOutlineMultiRepoOnly(false);
+                              setOutlineOpenGatesOnly(false);
                             }}
                           >
                             Clear filters
@@ -2484,6 +2519,7 @@ export function StructureEditor({
               workClass: "",
               repositoryIds: [],
               waveIds: [],
+              gateSummary: EMPTY_GATE_SUMMARY,
             },
           ];
           setSteps(next);

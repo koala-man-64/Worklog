@@ -32,7 +32,7 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 3. **Act as yourself.** Every later command MUST give `--as NAME` before the group. Your runs, reports, messages, tickets and proposals then carry your own identity.
 4. **One request ID per write.** Give each write a stable `--request-id`: 8-200 printable ASCII characters without spaces. After an uncertain result, rerun with the same ID and the identical payload; it cannot apply twice. A new operation MUST get a new ID. Proposal commands take none (section 7).
 5. **Current revisions.** A revision-checked command MUST carry the revision from your latest read. On `409 conflict`, read the record again and decide afresh; never reapply blindly.
-6. **Proposals for the person's records.** Work items, day entries, scratchpads and notes, roadmaps and step progress, deliverables, people, links, tracked chats, GitHub references, questions, decisions, repository edits, resources (the person's reference pages) and the files attached to the person's records change only through a proposal the person approves (section 6). You write tickets, discussions, your own runs, participation and updates, and repository registrations directly, and you track your own chat on the work you do (section 5.4); a proposal can also file or change a ticket that belongs with what it creates.
+6. **Proposals for the person's records.** Work items, day entries, scratchpads and notes, roadmaps, step progress and step gates, deliverables, people, links, tracked chats, GitHub references, questions, decisions, repository edits, resources (the person's reference pages) and the files attached to the person's records change only through a proposal the person approves (section 6). You write tickets, discussions, your own runs, participation and updates, and repository registrations directly, and you track your own chat on the work you do (section 5.4); a proposal can also file or change a ticket that belongs with what it creates.
 7. **Advisory, not authority.** Participation, ticket assignment, roles and discussion tags reserve nothing and lock nothing, and a fresh report does not prove an agent is running. An acknowledgement means "received and understood", never approval.
 8. **Search first.** Before you investigate a failure, search past tickets, closed ones included: `tickets list --status all --q 'WORDS'`. File a ticket for an issue worth tracking, comment as you learn, and close it with a resolution that says what fixed it.
 9. **Never work around a refusal.** `401` means your identity was revoked: by the person, by the retirement of the agent that registered you, or by a restore. Stop, tell the person, and register again only if they agree. `403 agent_scope` is outside agent authority: propose the change or ask. `429 agent_limit`: report it and do not retry. `403 repository_registration_off`: propose `repository.create`. Section 8 lists every code.
@@ -54,7 +54,8 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 | Scratchpad | note UUID | the one Markdown note of a work item | proposal (`note.create` adds a section) |
 | Note on a roadmap or step | UUID | `title`, `text` | proposal (`note.*`) |
 | Roadmap | UUID | `title`, `overview`, `parentId` for nesting, immutable versions, of which compaction keeps the 20 newest | proposal (`roadmap.*`) |
-| Step | UUID, stable across versions | `title`, `outcome`, `description`, `workClass`, `repositoryIds`; progress open, doing, blocked or done on leaf steps (a parent's follows its children); `retired` | proposal (`step.update`, `step.create`, `step.split`, `step.move`, `progress.set`, `roadmap.revise`) |
+| Step | UUID, stable across versions | `title`, `outcome`, `description`, `workClass`, `repositoryIds`, `gateSummary`; progress open, doing, blocked or done on leaf steps (a parent's follows its children and its gates); `retired` | proposal (`step.update`, `step.create`, `step.split`, `step.move`, `progress.set`, `roadmap.revise`) |
+| Step gate | UUID on a roadmap step | `title`, `criteria`, `kind` (`manual`, `approval`, `verification` or `prerequisite`), `humanOnly`, optional linked `target` (`step`, `deliverable`, `ticket` or `question`), effective `state` (`open`, `passed`, `waived` or `unavailable`), `revision` and `archived` | proposal (`gate.create`, `gate.update`, `gate.pass`, `gate.reopen`) unless `humanOnly`; only the person edits, passes or reopens `humanOnly` gates, waives, archives or recovers |
 | Deliverable | UUID on its owning roadmap | `title`, `description`, `stepIds`, checklist `requirements`, `inputs`, `outputs`, state (`planned`, `ready_for_review` or `accepted`), `revision` and `archived` | proposal (`deliverable.create`, `deliverable.update`, `deliverable.submit`, `deliverable.accept`, `deliverable.reopen`). The person archives or recovers. |
 | Wave | UUID | `name`, `summary`, `status` planning, active, completed or cancelled; `repositories` (`tier`, `freezeStatus` open, batching or frozen, `frozenRef`); `steps`; consumer `repins` (`pending`, `in_progress`, `verified` or `waived`); `archived` | proposal (`wave.create`, `wave.update`, `wave.steps`); you report `waves repin`; only the person changes status, freezes, verifies/waives or archives |
 | Question, decision | UUID | a question is open or answered | proposal |
@@ -80,13 +81,15 @@ Records are archived, never deleted, and only the person archives or recovers th
 
 | Action | The person | You directly | You by proposal |
 |---|---|---|---|
-| Read work, days, roadmaps, steps, deliverables, dispatch views, waves, repository queues, people, notes, tickets, resources, discussions, repositories, runs and proposals | yes | yes | - |
+| Read work, days, roadmaps, steps, step gates, deliverables, dispatch views, waves, repository queues, people, notes, tickets, resources, discussions, repositories, runs and proposals | yes | yes | - |
 | Read chat transcripts, the Claude Code sessions running on the person's machine, the Agents page, Settings, credentials, backups or the export | yes | no | - |
 | Prepare a Codex or Claude desktop session from a work item; read launch status or open that session | yes | no | - |
 | Start a local Codex or Claude child chat under your registered identity with `chats start` | - | yes | - |
 | Change work items, day entries, notes, roadmaps, progress, steps (including `step.create`, `step.split`, `step.move`), waves (`wave.create`, `wave.update`, `wave.steps`), people, links, tracked chats, GitHub references, questions or decisions | yes | no | yes |
 | Create, edit, submit, accept or reopen deliverables | yes | no | yes |
 | Archive or recover deliverables | yes | no | no |
+| Create, edit, pass or reopen step gates (when not `humanOnly` and not human-waived) | yes | no | yes |
+| Edit, pass or reopen a `humanOnly` step gate, reopen a waived gate, or waive, archive or recover any gate | yes | no | no |
 | Report consumer re-pin progress against a frozen wave repository (`waves repin`) | yes | yes (`in_progress`) | - |
 | Change wave status, freeze or unfreeze wave repositories, verify or waive re-pins, archive or recover waves, or reorder repository queues | yes | no | no |
 | Track your own chat on a work item, a roadmap or its steps | yes | yes, the chat you registered with | yes |
@@ -142,6 +145,10 @@ worklog agent --as NAME roadmap deliverables ROADMAP_ID
 worklog agent --as NAME roadmap deliverable DELIVERABLE_ID
 worklog agent --as NAME roadmap deliverable-history DELIVERABLE_ID
 worklog agent --as NAME step deliverables STEP_ID
+worklog agent --as NAME roadmap gates ROADMAP_ID --open
+worklog agent --as NAME step gates STEP_ID
+worklog agent --as NAME gate show GATE_ID
+worklog agent --as NAME gate history GATE_ID
 worklog agent --as NAME roadmap dispatch ROADMAP_ID
 worklog agent --as NAME repositories queue REPOSITORY_ID
 worklog agent --as NAME search 'parser'
@@ -280,14 +287,18 @@ worklog agent --as NAME retire
 | `context` | `[--date DATE] [--repo REPOSITORY_ID] [--item ITEM_ID] [--full]` | `{day,workItems,roadmaps,people,proposals,repositories,runs,participations,updates,tickets,resources}`, a summary by default: work items as `{id,title,status,rank}`, roadmaps as `{id,title,openQuestions}`, people as `{id,name}`, and the latest 10 updates as `{id,kind,text,authorLabel,participationId,createdAt}` with `text` cut to its first line (200 characters). `--full` answers the whole context instead: each work item, roadmap (without its steps), person and update whole, up to 100 of each. Either way: the day's entries, up to 100 of each other list, open proposals (yours in draft and those submitted for review) by title, status and `operationCount` without their changes, open tickets, and resources by title and summary without their text |
 | `dependencies list` | `--type repository\|step\|item\|ticket\|agent --id UUID` | `{prerequisites,dependents}`: active dependency links, including shared agent assignments and direct waits, plus repository catalog links. Ticket references use their canonical UUID |
 | `search QUERY` | `[--limit 50] [--archived]` | `{items:[{id,type,title,snippet,ownerId,routeType,routeId}],total}`; 220-character snippets; the first 30 words of QUERY count |
-| `roadmap outline ID` | - | `{id,title,archived,revision,steps:[{id,title,status,parentId,position,workClass,repositoryIds,waveId}]}`: each step in the plan, retired ones aside, depth-first in outline order, without its text; a parent's status comes from its leaves |
+| `roadmap outline ID` | - | `{id,title,archived,revision,steps:[{id,title,status,parentId,position,workClass,repositoryIds,waveId,gateSummary}]}`: each step in the plan, retired ones aside, depth-first in outline order, without its text; a parent's status comes from its leaves and its gates |
 | `roadmap dispatch ID` | `[--wave WAVE_ID] [--repo REPOSITORY_ID] [--include-done]` | Repo + Wave execution view: `summary`, `waves`, `activeWave`, `repoLanes` (per-repo WIP cap, active writers, doing/competing/queued/blocked steps, freeze state, re-pins), `multiRepoLeaves`, `unassignedLeaves` and `gates` |
 | `roadmap show ID` | - | the roadmap with every step's full text, progress, revision and `retired` flag, its versions, work items, notes, links, tracked chats, GitHub references, questions and decisions; without its history |
+| `roadmap gates ID` | `[--open] [--archived]` | `{items,total,summary}`: pre-completion gates across a roadmap's steps with live effective state, linked target status and rollup counts; `--open` keeps only unsatisfied gates |
 | `roadmap deliverables ID` | `[--own] [--archived] [--limit 50] [--offset 0]` | `{items,total,counts}`: deliverables owned by this roadmap and its descendants unless `--own`, with owner path and checklist counts. Use `--archived` to list archived records |
 | `roadmap deliverable ID` | - | the full deliverable with its requirements, linked steps, inputs, outputs and reference availability |
 | `roadmap deliverable-history ID` | `[--limit 50] [--offset 0]` | `{items,total,events}` with paged acceptance snapshots and up to 50 recent lifecycle events |
 | `step deliverables ID` | `[--limit 50] [--offset 0]` | `{items,total}` with active deliverables linked to the step from its roadmap or an active ancestor |
-| `step show ID` | - | the step with its full text, `roadmapId`, `workClass`, `repositoryIds`, `waveIds`, notes and attachments; `ancestors`, the steps above it from the top down, and `siblings`, the others under its parent in outline order, each `{id,title,status}` (siblings with `position`); and `chats`, the roadmap's tracked chats on it, archived ones included, in the order they were put there |
+| `step gates ID` | `[--archived]` | `{items,total,summary}`: active (or with `--archived`, archived) pre-completion gates attached to one step |
+| `step show ID` | - | the step with its full text, `roadmapId`, `workClass`, `repositoryIds`, `waveIds`, `gateSummary`, active `gates`, notes and attachments; `ancestors`, the steps above it from the top down, and `siblings`, the others under its parent in outline order, each `{id,title,status}` (siblings with `position`); and `chats`, the roadmap's tracked chats on it, archived ones included, in the order they were put there |
+| `gate show ID` | - | one step gate with its `criteria`, `kind`, `humanOnly`, linked `target`, effective `state`, `satisfied`, `autoEvaluated` and `resolution` |
+| `gate history ID` | `[--limit 50] [--offset 0]` | `{items,total}`: lifecycle events for one step gate |
 | `waves list` | `--roadmap ROADMAP_ID [--status planning\|active\|completed\|cancelled] [--archived]` | `{items,total}`: synchronized release/contract waves on a roadmap |
 | `waves show ID` | - | one wave with its `tierPipeline`, `repositories` (freeze state and `frozenRef`), `steps` and consumer `repins` |
 | `waves repin ID` | `--upstream REPO_ID --consumer REPO_ID [--ref REF] [--pr URL\|NUMBER] [--commit SHA]` | reports consumer re-pin progress (`in_progress`) against a frozen upstream repo (requires `--request-id`); only the person verifies or waives |
@@ -309,8 +320,12 @@ worklog agent --as NAME roadmap show ROADMAP_ID
 worklog agent --as NAME roadmap deliverables ROADMAP_ID --limit 50
 worklog agent --as NAME roadmap deliverable DELIVERABLE_ID
 worklog agent --as NAME roadmap deliverable-history DELIVERABLE_ID
+worklog agent --as NAME roadmap gates ROADMAP_ID --open
 worklog agent --as NAME step deliverables STEP_ID
+worklog agent --as NAME step gates STEP_ID
 worklog agent --as NAME step show STEP_ID
+worklog agent --as NAME gate show GATE_ID
+worklog agent --as NAME gate history GATE_ID --limit 50 --offset 0
 worklog agent --as NAME waves list --roadmap ROADMAP_ID --status active
 worklog agent --as NAME waves show WAVE_ID
 worklog agent --as NAME waves repin WAVE_ID --upstream REPOSITORY_ID --consumer CONSUMER_REPO_ID --ref v1.0.0 --pr https://github.com/team/repo/pull/51 --commit 43b69ae9 --request-id repin-CHAT_ID-1
@@ -832,6 +847,10 @@ A proposal is a JSON file with a title (up to 1,000 bytes), a rationale for the 
 | `step.create` | `roadmapId`, `revision`, `title` | `id`, `parentId`, `description`, `outcome`, `position`, `repositoryIds`, `workClass` |
 | `step.split` | `id`, `revision`, `children` | `clearParentRepositories`, `inheritWaves`, `rehomeToChildIndex` |
 | `step.move` | `id`, `revision` | `parentId`, `position` |
+| `gate.create` | `stepId`, `title` | `id`, `criteria`, `kind`, `humanOnly`, `target`, `position` |
+| `gate.update` | `id`, `revision` | `title`, `criteria`, `kind`, `humanOnly`, `target`, `position` |
+| `gate.pass` | `id`, `revision` | `note` |
+| `gate.reopen` | `id`, `revision`, `reason` | - |
 | `deliverable.create` | `roadmapId`, `title` | `id`, `description`, `stepIds`, `requirements`, `inputs`, `outputs` |
 | `deliverable.update` | `id`, `revision` | `title`, `description`, `stepIds`, `requirements`, `inputs`, `outputs` |
 | `deliverable.submit` | `id`, `revision` | - |
@@ -930,6 +949,11 @@ Any other field is refused. On a create, `id` is not an ID but a name for the ne
   - Within one deliverable create/update operation, repeated use of the same proposal upload across requirements, inputs and outputs makes one copy. Each unique upload copied by each create/update operation counts as one additional application operation toward the proposal's 500-operation limit. Repeated use in another operation counts again.
   - The states are `planned`, `ready_for_review` and `accepted`. `deliverable.submit` and `deliverable.accept` each require the complete checklist with proof or verification. Acceptance is independent of roadmap, step and dispatch status. `deliverable.reopen` from `ready_for_review` returns to `planned` and keeps checks. Reopening an accepted deliverable returns it to `planned`, clears its checks and keeps the proof references. Reopen before changing an accepted deliverable.
   - A proposal can name a new deliverable with `id:'@name'`, then refer to that name in a later operation in the same proposal. Each operation uses the revision left by the preceding operation. A new deliverable starts at revision 1. Submit and accept each advance it once. Acceptance history records the reviewed revision. The current record advances by one when acceptance applies. Acceptance can be proposed; the proposal follows the same approval setting as any other proposal.
+- **Step gates.** `gate.create` attaches a pre-completion gate to any active roadmap step (leaf or parent phase). `kind` is `manual` (default for manual gates), `approval`, `verification` or `prerequisite` (default for linked gates). `target` is optional `{type, id}` where `type` is `step`, `deliverable`, `ticket` or `question`.
+  - Linked gates auto-evaluate live: `passed` when the linked step or ticket is `done` (and for a step, also has no unsatisfied gates of its own or on done descendants), the deliverable is `accepted`, or the question is `answered`; `unavailable` when the target is archived, retired or missing; otherwise `open`. `gate.pass` is refused (`409 conflict`) on linked gates.
+  - Leaf step completion: `progress.set` to `done` is refused with `409 open_gates` while any active gate on the step is unsatisfied (`open` or `unavailable`). Parent steps hold at `doing` instead of rolling up to `done` while any active gate on the parent (or on a descendant leaf already marked `done`) is unsatisfied.
+  - Authority: `humanOnly: true` reserves a gate for the person. Once `humanOnly` is true, agent proposals cannot `gate.update`, `gate.pass` or `gate.reopen` that gate (`403 agent_scope`), both on submit and at apply time (even when approval is off). `gate.waive`, `gate.archive` and `gate.recover` are person-only, and agents cannot propose `gate.reopen` on a gate waived by the person (`403 agent_scope`).
+  - Cycle safety: linking a gate to a `step` target checks the combined step-hierarchy and step-gate graph and refuses self-links or cycles (`422 validation`). A proposal may name a new gate with `id:'@name'` and may reference `@name` targets created earlier in the same proposal.
 - **Resources.** `resource.*` creates, edits, archives and recovers the person's reference pages. Every agent reads them as the person's guidance, so say in the rationale why a page should change. The page's history keeps every earlier version and who changed it.
 - **Files.** You attach a file to the person's records with a copy of evidence uploaded to the same proposal:
   1. Draft the proposal; its operations may be empty for now.
@@ -1039,6 +1063,7 @@ worklog check
 | `not_found` | 404 | No such record, or not one you can see, such as another agent's draft | Check the ID with `search` or `context` |
 | `removed` | 410 | The file's bytes are gone: it was the evidence of a proposal withdrawn or rejected more than 30 days before `compact` ran. Its name, size and hash remain | Upload it again to a new proposal if you still need it |
 | `conflict` | 409 | A stale revision (`fields` `{expected,currentRevision}`), or a state that forbids the change, such as editing a submitted proposal | Read again; retry with the current revision only if the change is still right |
+| `open_gates` | 409 | A leaf step cannot be marked `done` while active completion gates remain unsatisfied (`fields.gates` lists each blocking gate) | Satisfy the open gates (or ask the person to pass or waive `humanOnly` gates) before setting the step `done` |
 | `operation` | 422 | An unsupported operation reached the server | Use an action from section 6.1 |
 | `archived` | 409 | The target, what it links to, or the evidence file to attach is archived | Ask the person to recover it, or choose another |
 | `too_large` | 413 | The request or file exceeds its limit | Shrink it (section 9) |
@@ -1170,7 +1195,7 @@ History older than 90 days may be thinned. When the person runs `worklog compact
 - **Work, and a work item's page.** Your participation under "Participants" and "Recent updates", and tracked chats under "Agent chats". Also the item's tickets, "GitHub commits & PRs", and under "Applied proposals" every proposal applied to it, with the changes each made there.
 - **Tickets.** Every ticket, with its author, assignee and comments.
 - **Resources.** The reference pages the person writes for you and for themselves. You change them only by proposal.
-- **Roadmaps.** A status board first: each phase's progress, the steps in progress with the agents working on them, the open steps next, and under "Needs you" the open questions, blocked steps and proposals waiting on Review that would change the roadmap. How many questions are open shows beside Roadmaps in the sidebar. In the outline, "Agents working here" and agent chips beside each step, for work going on now. Under "Execution", leaf steps group into "Repository lanes" with WIP caps, active writers, competing Doing work, queued order, synchronized waves across dependency tiers, upstream freezes, "Consumer re-pins", "Multi-repo leaves to split" and "Unassigned leaves". Under "Agents", on the roadmap and on each step, every agent whose reported work, updates, roles, discussion messages or tracked chats tie it there, now or before. Also tracked chats, questions and decisions, and "Applied proposals".
+- **Roadmaps.** A status board first: each phase's progress, open completion gates under "Gates", the steps in progress with the agents working on them, the open steps next, and under "Needs you" the open questions, blocked steps and proposals waiting on Review that would change the roadmap. How many questions are open shows beside Roadmaps in the sidebar. In the outline, "Agents working here", gate badges with an "Open gates only" filter, and agent chips beside each step, for work going on now. Under "Execution", leaf steps group into "Repository lanes" with WIP caps, active writers, competing Doing work, queued order, synchronized waves across dependency tiers, upstream freezes, "Consumer re-pins", "Multi-repo leaves to split" and "Unassigned leaves". Under "Agents", on the roadmap and on each step, every agent whose reported work, updates, roles, discussion messages or tracked chats tie it there, now or before. Also tracked chats, questions and decisions, and "Applied proposals".
 - **Repositories.** Registered repositories; yours say "Registered by" your label and "unreviewed" until the person confirms them. A repository's page lists "Execution policy" (dependency tier, WIP cap and upstream dependencies), "Execution queue", participants and recent updates. "Open agent runs" lets the person end a run you left open. Each repository's own discussion is on Discussions.
 - **Pull requests.** PRs linked to work items and roadmaps. Give the PR author's name or handle in `submittedBy` when you know it. Use `chatId` to link the chat that worked on it.
 - **Agents.** One entry per identity. It shows a status ("Reporting work", "Stale reports", "No current reports" or "Credential revoked"), your runs, messages and updates, under "From its work" the work your runs, messages and updates tie you to, and under "Proposals" every proposal you made, with where each got to. An identity that continued in a new chat stays one entry, its credentials naming each chat it worked in.
@@ -1208,6 +1233,7 @@ Point the person to the page that matters:
 | deliverable | `/deliverables/{id}` | a roadmap's "Deliverables" view, with requirements, delivery steps, inputs, outputs and history |
 | deliverable requirement | a numbered checklist row with a completion checkbox, `verificationNote` and `evidence` | the row's number and checkbox |
 | step progress | `/steps/{id}/progress` | the progress control beside each step |
+| step gate | `/gates/{id}`, `/steps/{id}/gates`, `/roadmaps/{id}/gates` | "Gates" on a step, the "Gates" rollup on Status, and "Open gates only" on the outline |
 | `roadmap dispatch` | `/roadmaps/{id}/dispatch` | "Execution" on a roadmap, with "Repository lanes" |
 | `waves` / `waves repin` | `/waves/{id}`, `/waves/{id}/repins` | synchronized waves and "Consumer re-pins" on "Execution" |
 | `repositories queue` | `/repositories/{id}/queue` | "Execution queue" on a repository's page |

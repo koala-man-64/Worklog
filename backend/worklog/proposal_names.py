@@ -61,6 +61,9 @@ def _uses(action: str, payload: dict) -> Iterator[tuple[str, Any, Any]]:
             ref = payload.get(field)
             if isinstance(ref, dict):
                 yield field, ref.get("id"), ref.get("type")
+    if action in {"gate.create", "gate.update"} and isinstance(payload.get("target"), dict):
+        ref = payload["target"]
+        yield "target", ref.get("id"), ref.get("type")
     if action == "step.split" and isinstance(payload.get("children"), list):
         for child in payload["children"]:
             if isinstance(child, dict) and isinstance(child.get("repositoryIds"), list):
@@ -147,6 +150,9 @@ def resolve(action: str, payload: dict, names: dict[str, str]) -> tuple[dict, st
             ref = resolved.get(field)
             if isinstance(ref, dict) and "id" in ref:
                 resolved[field] = {**ref, "id": known(field, ref["id"])}
+    if action in {"gate.create", "gate.update"} and isinstance(resolved.get("target"), dict) and "id" in resolved["target"]:
+        ref = resolved["target"]
+        resolved["target"] = {**ref, "id": known("target", ref["id"])}
     if action == "step.split" and isinstance(resolved.get("children"), list):
         resolved["children"] = [
             {**child, "repositoryIds": [known("repositoryIds", v) for v in child["repositoryIds"]]}

@@ -828,3 +828,64 @@ it("counts each listed proposal's changes from the list's operationCount", async
     within(row).getByText("Parser agent, 7 proposed changes"),
   ).toBeInTheDocument();
 });
+
+it("renders GateOperationSummary and chained gate revisions on Review", async () => {
+  const stepId = "22222222-2222-4222-8222-222222222222";
+  const proposal = {
+    id: ID,
+    title: "Add and pass verification gate",
+    rationale: "Track soak test before completing step.",
+    status: "submitted",
+    revision: 1,
+    autoApproved: false,
+    supersedesId: null,
+    actorId: "credential-1",
+    actorLabel: "Builder",
+    actorDirectory: null,
+    createdAt: "2026-11-28T10:00:00Z",
+    submittedAt: "2026-11-28T10:01:00Z",
+    updatedAt: "2026-11-28T10:01:00Z",
+    attachments: [],
+    operations: [
+      {
+        action: "gate.create",
+        payload: {
+          id: "@soak",
+          stepId,
+          title: "24h soak test",
+          kind: "verification",
+        },
+      },
+      {
+        action: "gate.pass",
+        payload: {
+          id: "@soak",
+          revision: 1,
+          note: "Zero errors over 24h",
+        },
+      },
+    ],
+  };
+  requestMock.mockImplementation(async (path: string) => {
+    if (path === `/proposals/${ID}`) return proposal;
+    if (path === `/proposals/${ID}/guardrails`)
+      return {
+        proposalId: ID,
+        warnings: [],
+        blocked: false,
+        repositories: [],
+      };
+    if (path === "/settings") return { requireProposalApproval: true };
+    return { items: [], total: 0 };
+  });
+  renderWithClient(<Review selectedId={ID} />);
+  expect(
+    await screen.findByText(/Creates a pre-completion gate/),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(/Passes a manual pre-completion gate/),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(/Verification note: Zero errors over 24h/),
+  ).toBeInTheDocument();
+});

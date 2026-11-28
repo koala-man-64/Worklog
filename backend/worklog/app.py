@@ -25,7 +25,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__, git_activity, locations, operations, policy, support
+from . import __version__, gates, git_activity, locations, operations, policy, support
 from . import models as m
 from . import responses as out
 from .active_sessions import running_sessions
@@ -48,6 +48,7 @@ from .deliverable_api import install_deliverable_routes
 from .dependency_api import install_dependency_routes
 from .discussion_api import install_discussion_routes
 from .discussions import bind_credential, communication_actor, registered_by, registered_chats
+from .gate_api import install_gate_routes
 from .guard import RequestGuard, error_response, read_body
 from .lease_api import install_lease_routes
 from .leases import LeaseService
@@ -768,6 +769,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                 "SELECT ch.* FROM agent_chats ch JOIN chat_steps cs ON cs.chat_id=ch.id WHERE cs.step_id=? ORDER BY cs.created_at,ch.id",
                 (identity,)).fetchall())
             return {**current, "roadmapId": row["roadmap_id"], **step_place(steps, identity), "chats": chats,
+                    "gates": gates.list_for_step(c, identity)["items"],
                     **support.for_owner(c, "step", identity)}
 
     @app.get("/api/v1/steps/{identity}/history", response_model=out.History)
@@ -1038,6 +1040,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
 
     # Install concrete writes before the /{verb} routes.
     install_deliverable_routes(app, work.deliverables, apply)
+    install_gate_routes(app, db, apply)
     install_wave_routes(app, db, mutate, proposals)
 
     @app.post("/api/v1/roadmaps/{identity}/{verb}", response_model=out.SavedRoadmap)

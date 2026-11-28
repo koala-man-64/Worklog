@@ -290,6 +290,61 @@
       "revision"
     ]
   },
+  "gate.create": {
+    "required": [
+      "stepId",
+      "title"
+    ],
+    "allowed": [
+      "criteria",
+      "humanOnly",
+      "id",
+      "kind",
+      "position",
+      "stepId",
+      "target",
+      "title"
+    ]
+  },
+  "gate.update": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "criteria",
+      "humanOnly",
+      "id",
+      "kind",
+      "position",
+      "revision",
+      "target",
+      "title"
+    ]
+  },
+  "gate.pass": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "note",
+      "revision"
+    ]
+  },
+  "gate.reopen": {
+    "required": [
+      "id",
+      "reason",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "reason",
+      "revision"
+    ]
+  },
   "deliverable.create": {
     "required": [
       "roadmapId",

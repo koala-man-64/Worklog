@@ -214,3 +214,13 @@ CREATE TABLE deliverable_acceptances(deliverable_id TEXT NOT NULL REFERENCES del
 """
 
 BASELINE += DELIVERABLES_SCHEMA
+
+# Pre-completion gates attached to roadmap steps (v40).
+STEP_GATES_SCHEMA = """
+CREATE TABLE step_gates(id TEXT PRIMARY KEY,step_id TEXT NOT NULL REFERENCES steps(id),title TEXT NOT NULL,criteria TEXT NOT NULL DEFAULT '',kind TEXT NOT NULL DEFAULT 'manual' CHECK(kind IN('manual','approval','verification','prerequisite')),human_only INTEGER NOT NULL DEFAULT 0 CHECK(human_only IN(0,1)),target_type TEXT CHECK(target_type IS NULL OR target_type IN('step','deliverable','ticket','question')),target_id TEXT,status TEXT NOT NULL DEFAULT 'open' CHECK(status IN('open','passed','waived')),resolution_note TEXT NOT NULL DEFAULT '',resolved_at TEXT,resolved_by_id TEXT,resolved_by_label TEXT,resolved_by_kind TEXT CHECK(resolved_by_kind IS NULL OR resolved_by_kind IN('human','agent')),proposal_id TEXT REFERENCES proposals(id),position INTEGER NOT NULL DEFAULT 0 CHECK(position>=0),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL,CHECK((target_type IS NULL)=(target_id IS NULL)),CHECK(target_type IS NULL OR status IN('open','waived')),CHECK(target_type IS NULL OR target_type<>'step' OR target_id<>step_id),CHECK((status='open' AND resolved_at IS NULL AND resolved_by_id IS NULL AND resolved_by_label IS NULL AND resolved_by_kind IS NULL AND proposal_id IS NULL) OR (status IN('passed','waived') AND resolved_at IS NOT NULL AND resolved_by_id IS NOT NULL AND resolved_by_label IS NOT NULL AND resolved_by_kind IS NOT NULL)));
+CREATE INDEX step_gates_step ON step_gates(step_id,archived,position,created_at,id);
+CREATE INDEX step_gates_target ON step_gates(target_type,target_id,archived) WHERE target_type IS NOT NULL;
+CREATE UNIQUE INDEX step_gates_active_target ON step_gates(step_id,target_type,target_id) WHERE archived=0 AND target_type IS NOT NULL;
+"""
+
+BASELINE += STEP_GATES_SCHEMA

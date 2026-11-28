@@ -26,6 +26,7 @@ from pydantic import ValidationError
 
 from . import coordination_models as cm
 from . import dependency_models as dm
+from . import gate_models as gm
 from . import models as m
 from .common import AppError
 
@@ -83,6 +84,10 @@ OPERATIONS: dict[str, Spec] = {
     "step.create": Spec(m.StepCreate, frozenset({"roadmapId"})),
     "step.split": _existing(m.StepSplit),
     "step.move": _existing(m.StepMove),
+    "gate.create": Spec(gm.GateCreate, frozenset({"stepId"})),
+    "gate.update": _existing(gm.GateUpdate),
+    "gate.pass": _existing(gm.GatePass),
+    "gate.reopen": _existing(gm.GateReopen),
     "deliverable.create": Spec(m.DeliverableCreate, frozenset({"roadmapId"})),
     "deliverable.update": _existing(m.DeliverableUpdate),
     "deliverable.submit": _existing(m.Expected),
@@ -137,6 +142,7 @@ SERVER_ONLY = frozenset({
     "roadmap.restore", "roadmap.archive", "roadmap.recover",
     "ticket.archive", "ticket.recover",
     "deliverable.archive", "deliverable.recover",
+    "gate.waive", "gate.archive", "gate.recover",
     "wave.archive", "wave.recover", "wave.status", "wave.freeze", "wave.repin.verify",
     "repository.queue.reorder",
 })

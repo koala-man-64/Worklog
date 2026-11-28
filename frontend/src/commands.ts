@@ -318,6 +318,50 @@ export const commands = {
       "PATCH",
       body,
     ),
+  createStepGate: (stepId: string, body: Schema["GateCreate"]) =>
+    request<Answer<"/api/v1/steps/{identity}/gates", "post">>(
+      `/steps/${encodeURIComponent(stepId)}/gates`,
+      "POST",
+      body,
+    ),
+  updateGate: (id: string, body: Schema["GateUpdate"]) =>
+    request<Answer<"/api/v1/gates/{identity}", "patch">>(
+      `/gates/${encodeURIComponent(id)}`,
+      "PATCH",
+      body,
+    ),
+  passGate: (id: string, body: Schema["GatePass"]) =>
+    request<Answer<"/api/v1/gates/{identity}/pass", "post">>(
+      `/gates/${encodeURIComponent(id)}/pass`,
+      "POST",
+      body,
+    ),
+  waiveGate: (id: string, body: Schema["GateWaive"]) =>
+    request<Answer<"/api/v1/gates/{identity}/waive", "post">>(
+      `/gates/${encodeURIComponent(id)}/waive`,
+      "POST",
+      body,
+    ),
+  reopenGate: (id: string, body: Schema["GateReopen"]) =>
+    request<Answer<"/api/v1/gates/{identity}/reopen", "post">>(
+      `/gates/${encodeURIComponent(id)}/reopen`,
+      "POST",
+      body,
+    ),
+  setGateArchived: (id: string, archived: boolean, body: Schema["Expected"]) => {
+    const gateId = encodeURIComponent(id);
+    return archived
+      ? request<Answer<"/api/v1/gates/{identity}/archive", "post">>(
+          `/gates/${gateId}/archive`,
+          "POST",
+          body,
+        )
+      : request<Answer<"/api/v1/gates/{identity}/recover", "post">>(
+          `/gates/${gateId}/recover`,
+          "POST",
+          body,
+        );
+  },
   // Synchronized release waves.
   createWave: (roadmapId: string, body: Schema["WaveCreate"]) =>
     request<Answer<"/api/v1/roadmaps/{identity}/waves", "post">>(

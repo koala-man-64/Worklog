@@ -166,5 +166,16 @@ def test_an_agent_reads_roadmap_steps_and_deliverables_from_the_application(tmp_
         assert (acceptance["revision"], acceptance["note"]) == (ready["revision"], "Measurements reviewed")
         assert acceptance["snapshot"]["requirements"][0]["verificationNote"] == "Measured a fresh run"
 
+        gate = write(f"/steps/{CHILD}/gates", {
+            "title": "Security review", "kind": "approval", "humanOnly": True,
+        }, "create-parser-gate")
+        write(f"/gates/{gate['id']}/pass", {"revision": gate["revision"], "note": "Reviewed"}, "pass-parser-gate")
+        assert [g["id"] for g in run("roadmap", "gates", roadmap["id"])["items"]] == [gate["id"]]
+        assert run("roadmap", "gates", roadmap["id"], "--open")["items"] == []
+        assert [g["id"] for g in run("step", "gates", CHILD)["items"]] == [gate["id"]]
+        assert run("gate", "show", gate["id"])["state"] == "passed"
+        assert [e["kind"] for e in run("gate", "history", gate["id"])["items"]] == ["gate.pass", "gate.create"]
+        assert run("step", "show", CHILD)["gates"][0]["id"] == gate["id"]
+
         code = cli.main(["agent", "step", "show", ID])
         assert code == 1 and "HTTP 404" in capsys.readouterr().err

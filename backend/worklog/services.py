@@ -6,7 +6,7 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
-from . import dependencies, search, support
+from . import dependencies, gates, search, support
 from .common import AppError
 from .coordination import repository_apply
 from .db import Database
@@ -67,6 +67,13 @@ class WorkService:
             if self.proposals is not None and action != "roadmap.create":
                 self.proposals.notify_stale_proposals(
                     c, result.get("roadmapId") if action in {"progress.set", "step.update", "step.create", "step.split", "step.move"} else result.get("id"))
+            return result
+        if action.startswith("gate."):
+            author = proposer_identity(c, actor) if proposed else actor
+            proposal_id = self.proposals.applying_id if proposed and self.proposals is not None else None
+            result = gates.apply(c, author, action, p, proposed=proposed, proposal_id=proposal_id)
+            if self.proposals is not None and not proposed and action != "gate.create":
+                self.proposals.notify_stale_proposals(c, result["roadmapId"])
             return result
         if action.startswith("deliverable."):
             author = proposer_identity(c, actor) if proposed else actor

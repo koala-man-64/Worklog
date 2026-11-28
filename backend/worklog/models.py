@@ -495,6 +495,7 @@ class Operation(Command):
                     "note.create", "note.update",
                     "roadmap.create", "roadmap.revise", "roadmap.move", "progress.set", "step.update",
                     "step.create", "step.split", "step.move",
+                    "gate.create", "gate.update", "gate.pass", "gate.reopen",
                     "deliverable.create", "deliverable.update", "deliverable.submit", "deliverable.accept", "deliverable.reopen",
                     "wave.create", "wave.update", "wave.steps",
                     "person.create", "person.update", "person.archive", "person.recover",

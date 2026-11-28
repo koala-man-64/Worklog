@@ -5944,6 +5944,554 @@
         }
       }
     },
+    "/api/v1/roadmaps/{identity}/gates": {
+      "get": {
+        "summary": "Roadmap Gates",
+        "operationId": "roadmap_gates_api_v1_roadmaps__identity__gates_get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Archived"
+            }
+          },
+          {
+            "name": "onlyOpen",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Onlyopen"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoadmapGates"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/steps/{identity}/gates": {
+      "get": {
+        "summary": "Step Gates",
+        "operationId": "step_gates_api_v1_steps__identity__gates_get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Archived"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StepGates"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Gate Create",
+        "operationId": "gate_create_api_v1_steps__identity__gates_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GateCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StepGate"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gates/{identity}": {
+      "get": {
+        "summary": "Gate Detail",
+        "operationId": "gate_detail_api_v1_gates__identity__get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StepGate"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Gate Update",
+        "operationId": "gate_update_api_v1_gates__identity__patch",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GateUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StepGate"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gates/{identity}/history": {
+      "get": {
+        "summary": "Gate History",
+        "operationId": "gate_history_api_v1_gates__identity__history_get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/History"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gates/{identity}/pass": {
+      "post": {
+        "summary": "Gate Pass",
+        "operationId": "gate_pass_api_v1_gates__identity__pass_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GatePass"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StepGate"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gates/{identity}/waive": {
+      "post": {
+        "summary": "Gate Waive",
+        "operationId": "gate_waive_api_v1_gates__identity__waive_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GateWaive"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StepGate"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gates/{identity}/reopen": {
+      "post": {
+        "summary": "Gate Reopen",
+        "operationId": "gate_reopen_api_v1_gates__identity__reopen_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GateReopen"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StepGate"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gates/{identity}/archive": {
+      "post": {
+        "summary": "Gate Archive",
+        "operationId": "gate_archive_api_v1_gates__identity__archive_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Expected"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StepGate"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gates/{identity}/recover": {
+      "post": {
+        "summary": "Gate Recover",
+        "operationId": "gate_recover_api_v1_gates__identity__recover_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Expected"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StepGate"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/roadmaps/{identity}/dispatch": {
       "get": {
         "summary": "Roadmap Dispatch",
@@ -16806,6 +17354,9 @@
             "type": "array",
             "title": "Waveids"
           },
+          "gateSummary": {
+            "$ref": "#/components/schemas/GateSummary"
+          },
           "roadmapId": {
             "type": "string",
             "title": "Roadmapid"
@@ -16830,6 +17381,7 @@
           "workClass",
           "repositoryIds",
           "waveIds",
+          "gateSummary",
           "roadmapId",
           "roadmapRevision"
         ],
@@ -20577,6 +21129,9 @@
             },
             "type": "array",
             "title": "Activeagents"
+          },
+          "gateSummary": {
+            "$ref": "#/components/schemas/GateSummary"
           }
         },
         "additionalProperties": false,
@@ -20593,7 +21148,8 @@
           "inActiveWave",
           "queuePosition",
           "phasePath",
-          "activeAgents"
+          "activeAgents",
+          "gateSummary"
         ],
         "title": "DispatchStepCard"
       },
@@ -20724,6 +21280,9 @@
             "type": "array",
             "title": "Activeagents"
           },
+          "gateSummary": {
+            "$ref": "#/components/schemas/GateSummary"
+          },
           "suggestedRepoIds": {
             "items": {
               "type": "string"
@@ -20747,6 +21306,7 @@
           "queuePosition",
           "phasePath",
           "activeAgents",
+          "gateSummary",
           "suggestedRepoIds"
         ],
         "title": "DispatchUnassignedStepCard"
@@ -21177,6 +21737,415 @@
           "frozenRef"
         ],
         "title": "FrozenWaveRef"
+      },
+      "GateCreate": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "criteria": {
+            "type": "string",
+            "maxLength": 100000,
+            "title": "Criteria",
+            "default": ""
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "manual",
+                  "approval",
+                  "verification",
+                  "prerequisite"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "humanOnly": {
+            "type": "boolean",
+            "title": "Humanonly",
+            "default": false
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GateTargetRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "GateCreate"
+      },
+      "GatePass": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 8000,
+            "title": "Note",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision"
+        ],
+        "title": "GatePass"
+      },
+      "GateReopen": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 8000,
+            "minLength": 1,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "reason"
+        ],
+        "title": "GateReopen"
+      },
+      "GateResolution": {
+        "properties": {
+          "resolvedAt": {
+            "type": "string",
+            "title": "Resolvedat"
+          },
+          "actorId": {
+            "type": "string",
+            "title": "Actorid"
+          },
+          "actorLabel": {
+            "type": "string",
+            "title": "Actorlabel"
+          },
+          "actorKind": {
+            "type": "string",
+            "enum": [
+              "human",
+              "agent"
+            ],
+            "title": "Actorkind"
+          },
+          "proposalId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposalid"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "resolvedAt",
+          "actorId",
+          "actorLabel",
+          "actorKind",
+          "proposalId",
+          "note"
+        ],
+        "title": "GateResolution",
+        "description": "Who passed or waived a gate, when, and with what note or reason."
+      },
+      "GateSummary": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "open": {
+            "type": "integer",
+            "title": "Open"
+          },
+          "passed": {
+            "type": "integer",
+            "title": "Passed"
+          },
+          "waived": {
+            "type": "integer",
+            "title": "Waived"
+          },
+          "unavailable": {
+            "type": "integer",
+            "title": "Unavailable"
+          },
+          "blocking": {
+            "type": "integer",
+            "title": "Blocking"
+          },
+          "humanOnlyBlocking": {
+            "type": "integer",
+            "title": "Humanonlyblocking"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "total",
+          "open",
+          "passed",
+          "waived",
+          "unavailable",
+          "blocking",
+          "humanOnlyBlocking"
+        ],
+        "title": "GateSummary",
+        "description": "Counts of active pre-completion gates on one roadmap step."
+      },
+      "GateTarget": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "step",
+              "deliverable",
+              "ticket",
+              "question"
+            ],
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "roadmapId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roadmapid"
+          },
+          "href": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Href"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "title",
+          "status",
+          "available",
+          "roadmapId",
+          "href"
+        ],
+        "title": "GateTarget",
+        "description": "The Worklog record a linked gate auto-evaluates against."
+      },
+      "GateTargetRef": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "step",
+              "deliverable",
+              "ticket",
+              "question"
+            ],
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "id"
+        ],
+        "title": "GateTargetRef"
+      },
+      "GateUpdate": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "criteria": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Criteria"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "manual",
+                  "approval",
+                  "verification",
+                  "prerequisite"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "humanOnly": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Humanonly"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GateTargetRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision"
+        ],
+        "title": "GateUpdate"
+      },
+      "GateWaive": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 8000,
+            "minLength": 1,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "reason"
+        ],
+        "title": "GateWaive"
       },
       "GithubRefCreate": {
         "properties": {
@@ -24481,6 +25450,10 @@
               "step.create",
               "step.split",
               "step.move",
+              "gate.create",
+              "gate.update",
+              "gate.pass",
+              "gate.reopen",
               "deliverable.create",
               "deliverable.update",
               "deliverable.submit",
@@ -24589,6 +25562,9 @@
               }
             ],
             "title": "Waveid"
+          },
+          "gateSummary": {
+            "$ref": "#/components/schemas/GateSummary"
           }
         },
         "additionalProperties": false,
@@ -24601,7 +25577,8 @@
           "position",
           "workClass",
           "repositoryIds",
-          "waveId"
+          "waveId",
+          "gateSummary"
         ],
         "title": "OutlineStep",
         "description": "A step as a roadmap's outline gives it: no text."
@@ -27097,6 +28074,9 @@
             },
             "type": "array",
             "title": "Waveids"
+          },
+          "gateSummary": {
+            "$ref": "#/components/schemas/GateSummary"
           }
         },
         "additionalProperties": false,
@@ -27113,7 +28093,8 @@
           "retired",
           "workClass",
           "repositoryIds",
-          "waveIds"
+          "waveIds",
+          "gateSummary"
         ],
         "title": "PlanStep",
         "description": "A step's own fields, as a roadmap's steps and its saved revisions give them. A parent's\nstatus is derived from its leaves."
@@ -31038,6 +32019,186 @@
         ],
         "title": "RoadmapDispatch"
       },
+      "RoadmapGate": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "stepId": {
+            "type": "string",
+            "title": "Stepid"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          },
+          "stepTitle": {
+            "type": "string",
+            "title": "Steptitle"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "criteria": {
+            "type": "string",
+            "title": "Criteria"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "approval",
+              "verification",
+              "prerequisite"
+            ],
+            "title": "Kind"
+          },
+          "humanOnly": {
+            "type": "boolean",
+            "title": "Humanonly"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GateTarget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "storedStatus": {
+            "type": "string",
+            "enum": [
+              "open",
+              "passed",
+              "waived"
+            ],
+            "title": "Storedstatus"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "open",
+              "passed",
+              "waived",
+              "unavailable"
+            ],
+            "title": "State"
+          },
+          "satisfied": {
+            "type": "boolean",
+            "title": "Satisfied"
+          },
+          "autoEvaluated": {
+            "type": "boolean",
+            "title": "Autoevaluated"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GateResolution"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "stepStatus": {
+            "type": "string",
+            "title": "Stepstatus"
+          },
+          "isParent": {
+            "type": "boolean",
+            "title": "Isparent"
+          },
+          "phaseId": {
+            "type": "string",
+            "title": "Phaseid"
+          },
+          "phaseTitle": {
+            "type": "string",
+            "title": "Phasetitle"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "stepId",
+          "roadmapId",
+          "stepTitle",
+          "title",
+          "criteria",
+          "kind",
+          "humanOnly",
+          "target",
+          "storedStatus",
+          "state",
+          "satisfied",
+          "autoEvaluated",
+          "resolution",
+          "position",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "stepStatus",
+          "isParent",
+          "phaseId",
+          "phaseTitle"
+        ],
+        "title": "RoadmapGate",
+        "description": "One step gate listed at the roadmap level, with step status and phase context."
+      },
+      "RoadmapGates": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RoadmapGate"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/GateSummary"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "summary"
+        ],
+        "title": "RoadmapGates"
+      },
       "RoadmapListed": {
         "properties": {
           "id": {
@@ -31383,6 +32544,9 @@
             "type": "array",
             "title": "Waveids"
           },
+          "gateSummary": {
+            "$ref": "#/components/schemas/GateSummary"
+          },
           "notes": {
             "items": {
               "$ref": "#/components/schemas/Note"
@@ -31417,6 +32581,7 @@
           "workClass",
           "repositoryIds",
           "waveIds",
+          "gateSummary",
           "notes",
           "attachments",
           "agentActive"
@@ -32265,6 +33430,9 @@
             "type": "array",
             "title": "Waveids"
           },
+          "gateSummary": {
+            "$ref": "#/components/schemas/GateSummary"
+          },
           "roadmapId": {
             "type": "string",
             "title": "Roadmapid"
@@ -32285,6 +33453,7 @@
           "workClass",
           "repositoryIds",
           "waveIds",
+          "gateSummary",
           "roadmapId"
         ],
         "title": "SavedStep",
@@ -33399,6 +34568,9 @@
             "type": "array",
             "title": "Waveids"
           },
+          "gateSummary": {
+            "$ref": "#/components/schemas/GateSummary"
+          },
           "notes": {
             "items": {
               "$ref": "#/components/schemas/Note"
@@ -33441,6 +34613,13 @@
             },
             "type": "array",
             "title": "Chats"
+          },
+          "gates": {
+            "items": {
+              "$ref": "#/components/schemas/StepGate"
+            },
+            "type": "array",
+            "title": "Gates"
           }
         },
         "additionalProperties": false,
@@ -33458,13 +34637,15 @@
           "workClass",
           "repositoryIds",
           "waveIds",
+          "gateSummary",
           "notes",
           "attachments",
           "agentActive",
           "roadmapId",
           "ancestors",
           "siblings",
-          "chats"
+          "chats",
+          "gates"
         ],
         "title": "Step",
         "description": "A step as its own read returns it: with its roadmap, retired or not, where it sits in the plan,\nand the tracked chats on it."
@@ -33645,6 +34826,166 @@
         ],
         "title": "StepCreate",
         "description": "revision is the roadmap's own. Inserts one step without rewriting the full tree."
+      },
+      "StepGate": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "stepId": {
+            "type": "string",
+            "title": "Stepid"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          },
+          "stepTitle": {
+            "type": "string",
+            "title": "Steptitle"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "criteria": {
+            "type": "string",
+            "title": "Criteria"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "approval",
+              "verification",
+              "prerequisite"
+            ],
+            "title": "Kind"
+          },
+          "humanOnly": {
+            "type": "boolean",
+            "title": "Humanonly"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GateTarget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "storedStatus": {
+            "type": "string",
+            "enum": [
+              "open",
+              "passed",
+              "waived"
+            ],
+            "title": "Storedstatus"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "open",
+              "passed",
+              "waived",
+              "unavailable"
+            ],
+            "title": "State"
+          },
+          "satisfied": {
+            "type": "boolean",
+            "title": "Satisfied"
+          },
+          "autoEvaluated": {
+            "type": "boolean",
+            "title": "Autoevaluated"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GateResolution"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "stepId",
+          "roadmapId",
+          "stepTitle",
+          "title",
+          "criteria",
+          "kind",
+          "humanOnly",
+          "target",
+          "storedStatus",
+          "state",
+          "satisfied",
+          "autoEvaluated",
+          "resolution",
+          "position",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "StepGate",
+        "description": "One pre-completion gate attached to a roadmap step, with live effective state."
+      },
+      "StepGates": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/StepGate"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/GateSummary"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "summary"
+        ],
+        "title": "StepGates"
       },
       "StepMove": {
         "properties": {

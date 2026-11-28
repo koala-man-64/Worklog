@@ -243,6 +243,20 @@ For a buildable repository, link the approved design as an input and the reviewe
 
 Agents can propose the same plan and acceptance changes. The "Require my approval for agent proposals" setting determines when those changes apply. To accept a deliverable, the proposal must include an explicit acceptance operation.
 
+### Track completion gates on roadmap steps
+
+A gate tracks something that must happen before a roadmap step or phase can complete. Unlike advisory dependencies (which inform without blocking), deliverables (which bundle proof for an accepted handoff) or the Readiness gate work class (which keeps a cross-repo milestone leaf from being split), completion gates enforce completion rules directly.
+
+1. Open any leaf or parent step on the roadmap's "Outline", find "Gates" under the description, and press "Add gate".
+2. Enter a title and optional Markdown criteria, choose a kind (Manual check, Approval, Verification or Prerequisite), and optionally tick "Human-only" if agents must never pass, edit or reopen the gate (even when "Require my approval for agent proposals" is off).
+3. Leave the linked record empty for a manual gate, or link an existing Step, Deliverable, Ticket or Question. Linked gates show "Auto-evaluated" and flip to Passed on their own once the linked step or ticket is Done, the deliverable is accepted, or the question is answered. If the linked record is archived, retired or missing, the gate shows Unavailable until it recovers or you waive it.
+4. Press "Create gate".
+   - **Leaf steps:** Worklog refuses to mark a leaf step Done while any active gate on it is Open or Unavailable. Press "Pass gate" and "Confirm pass" on manual gates, satisfy linked records, or press "Waive" with a required reason and "Confirm waive".
+   - **Parent phases:** Even after every child step is Done, a parent step stays in progress until its own gates (and any gates on done descendants) are Passed or Waived.
+   - **Reopening and archiving:** Press "Reopen" with a reason and "Confirm reopen" to require a passed or waived gate again. Press "Edit" and "Save gate" to adjust criteria or kind, or "Archive" and "Recover" (revealed by "Show archived gates") to retire or restore a gate.
+
+The roadmap's "Status" view lists open gates under "Gates", and the "Outline" shows a gate badge on each gated step with an "Open gates only" filter. Agents can read gates and propose new gates, edits, passes and reopens on Review, except on "Human-only" gates; waiving, archiving and recovering gates always stay yours.
+
 ### Execute a roadmap by repository stream and wave
 
 Keep phases, milestones and end-to-end readiness gates on the roadmap's "Outline" for planning, and run execution from its "Execution" view, where leaf steps group into "Repository lanes" (one stream per repository) and synchronize across dependency tiers in waves.
@@ -477,6 +491,7 @@ Plans broken into steps, with every saved version kept.
     - "Nested under", the sub-roadmaps and "Add sub-roadmap".
     - Its views, each at its own address: "Status", "Outline", "Deliverables", "Execution", "Questions and decisions" with how many are open, "Chats", "Discussions", "Live", "Material" and "History".
   - **"Status"**, which the roadmap opens on:
+    - "Gates": open completion gates across the roadmap when any exist, naming human-only gates awaiting you and linking directly to each gated step.
     - "Phases": each step at the top of the outline, with how many of the steps under it are done, in progress, blocked and open, and a bar filled in those colours.
     - "Now": the steps in progress, Active ones among them, each with its phase and the agents working on it.
     - "Next": the open steps no agent is working on, in outline order.
@@ -485,11 +500,12 @@ Plans broken into steps, with every saved version kept.
     - "Now", "Next" and each list under "Needs you" show their first eight and link to the rest; "Recently done" shows the last ten.
     - Then the overview text, its people and "Agents": every agent whose work ties it to the roadmap, now or before: its reported work, status updates, responsibilities, discussion messages and tracked chats, the same work that names the roadmap on its card on **Agents**. Each row says why, with "Current" while something is still open and otherwise when it last was. Agents whose credentials are revoked sit under "Retired agents". Nobody ties them here by hand.
   - **"Outline":**
-    - "Plan & progress": the outline of steps, with "Collapse done", "Collapse all" and "Expand all", "Show retired steps" once a step is retired, and optional filters by repository, work class and "Multi-repo leaves only". A long title is cut short on its line; hover over it to read it whole, as on "Status".
-    - "Agents working here", and each step's progress, work-item count, work class, linked repositories and agents.
+    - "Plan & progress": the outline of steps, with "Collapse done", "Collapse all" and "Expand all", "Show retired steps" once a step is retired, and optional filters by repository, work class, "Multi-repo leaves only" and "Open gates only". A long title is cut short on its line; hover over it to read it whole, as on "Status".
+    - "Agents working here", and each step's progress, gate badge, work-item count, work class, linked repositories and agents.
     - Drag the outline's edge to resize it.
     - "Edit structure" opens the editor beside it. Otherwise it has the step chosen in the outline:
       - Its "Outcome" first, in a panel larger than anything else under its title, or "No outcome yet" when it has none. Then its description, with "Edit step" for its title, outcome, description, work class and linked repositories, "Split by repo" to split a leaf into single-repo child steps, and "Add child step" to add a child step without rewriting the full tree.
+      - Its "Gates", with "Add gate", "Pass gate", "Waive", "Reopen", "Edit", "Archive" and "Show archived gates" (see [Track completion gates on roadmap steps](#track-completion-gates-on-roadmap-steps)).
       - Its work items, each with its status and "Unlink". "Add work item" creates one on this step, and "Attach work item" puts existing work, found with "Find existing work", on it, moving it from another step.
       - Its agent chats, with "Assign chat", "Add chat to step" and "Unassign". "Messages" opens a chat on the roadmap's "Chats".
       - "Agents": the agents whose work ties them to the step or to the steps under it, as "Status" lists them.
@@ -686,6 +702,7 @@ This guide, and the one your agents read:
 | Scratchpad | A work item's one running Markdown note |
 | Roadmap | A plan of nested steps, saved as immutable versions |
 | Step | One part of a roadmap, with the outcome its work produces; leaf steps carry progress |
+| Gate | A completion requirement attached to a roadmap step or phase (manual or linked to a step, deliverable, ticket or question) that blocks completion until passed or waived |
 | Active | A status Worklog works out, never set: Open or Doing work, or a step, that an agent reported work on in the last 2 hours |
 | Repository lane | One repository's execution stream on a roadmap's "Execution" view: active work, competing in-progress work, queued order and blocked steps, governed by its dependency tier and WIP cap |
 | Dependency | A directed link that records a prerequisite between Worklog records, or an agent's wait in a work context |
