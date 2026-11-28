@@ -140,6 +140,8 @@ worklog agent --as NAME runs start --client-run-key CHAT_ID --display-name 'Pars
 worklog agent --as NAME context
 worklog agent --as NAME roadmap deliverables ROADMAP_ID
 worklog agent --as NAME roadmap deliverable DELIVERABLE_ID
+worklog agent --as NAME roadmap deliverable-history DELIVERABLE_ID
+worklog agent --as NAME step deliverables STEP_ID
 worklog agent --as NAME roadmap dispatch ROADMAP_ID
 worklog agent --as NAME repositories queue REPOSITORY_ID
 worklog agent --as NAME search 'parser'
@@ -283,6 +285,8 @@ worklog agent --as NAME retire
 | `roadmap show ID` | - | the roadmap with every step's full text, progress, revision and `retired` flag, its versions, work items, notes, links, tracked chats, GitHub references, questions and decisions; without its history |
 | `roadmap deliverables ID` | `[--own] [--archived] [--limit 50] [--offset 0]` | `{items,total,counts}`: deliverables owned by this roadmap and its descendants unless `--own`, with owner path and checklist counts. Use `--archived` to list archived records |
 | `roadmap deliverable ID` | - | the full deliverable with its requirements, linked steps, inputs, outputs and reference availability |
+| `roadmap deliverable-history ID` | `[--limit 50] [--offset 0]` | `{items,total,events}` with paged acceptance snapshots and up to 50 recent lifecycle events |
+| `step deliverables ID` | `[--limit 50] [--offset 0]` | `{items,total}` with active deliverables linked to the step from its roadmap or an active ancestor |
 | `step show ID` | - | the step with its full text, `roadmapId`, `workClass`, `repositoryIds`, `waveIds`, notes and attachments; `ancestors`, the steps above it from the top down, and `siblings`, the others under its parent in outline order, each `{id,title,status}` (siblings with `position`); and `chats`, the roadmap's tracked chats on it, archived ones included, in the order they were put there |
 | `waves list` | `--roadmap ROADMAP_ID [--status planning\|active\|completed\|cancelled] [--archived]` | `{items,total}`: synchronized release/contract waves on a roadmap |
 | `waves show ID` | - | one wave with its `tierPipeline`, `repositories` (freeze state and `frozenRef`), `steps` and consumer `repins` |
@@ -304,6 +308,8 @@ worklog agent --as NAME roadmap dispatch ROADMAP_ID --wave WAVE_ID --repo REPOSI
 worklog agent --as NAME roadmap show ROADMAP_ID
 worklog agent --as NAME roadmap deliverables ROADMAP_ID --limit 50
 worklog agent --as NAME roadmap deliverable DELIVERABLE_ID
+worklog agent --as NAME roadmap deliverable-history DELIVERABLE_ID
+worklog agent --as NAME step deliverables STEP_ID
 worklog agent --as NAME step show STEP_ID
 worklog agent --as NAME waves list --roadmap ROADMAP_ID --status active
 worklog agent --as NAME waves show WAVE_ID

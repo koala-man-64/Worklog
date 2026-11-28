@@ -53,6 +53,18 @@ def test_deliverables_list_passes_scope_and_paging(transport):
     assert parse_qs(sent.query) == {"scope": ["own"], "archived": ["true"], "limit": ["7"], "offset": ["3"]}
 
 
+@pytest.mark.parametrize(("arguments", "path"), [
+    (["roadmap", "deliverable-history", ID], f"/deliverables/{ID}/history"),
+    (["step", "deliverables", ID], f"/steps/{ID}/deliverables"),
+])
+def test_deliverable_history_and_step_links_pass_paging(transport, arguments, path):
+    assert cli.main(["agent", *arguments, "--limit", "7", "--offset", "3"]) == 0
+    sent = transport[-1]
+    url = urlsplit(sent.full_url)
+    assert (sent.method, url.path) == ("GET", "/api/v1" + path)
+    assert parse_qs(url.query) == {"limit": ["7"], "offset": ["3"]}
+
+
 @pytest.mark.parametrize("method,path", [
     ("POST", f"/roadmaps/{ID}/deliverables"), ("PATCH", f"/deliverables/{ID}"),
     ("POST", f"/deliverables/{ID}/accept"), ("GET", "/deliverables/not-a-deliverable"),
@@ -79,7 +91,7 @@ def test_text_survives_a_console_that_cannot_encode_it(transport, monkeypatch, c
     assert json.loads(console.buffer.getvalue())["description"] == DESCRIPTION
 
 
-def test_an_agent_reads_every_step_in_full_from_the_application(tmp_path, monkeypatch, capsys):
+def test_an_agent_reads_roadmap_steps_and_deliverables_from_the_application(tmp_path, monkeypatch, capsys):
     app = create_app(tmp_path / "server", testing=True)
     with TestClient(app, base_url="http://127.0.0.1:8877") as person, TestClient(app, base_url="http://127.0.0.1:8877") as wire:
         person.headers["Origin"] = "http://127.0.0.1:8877"
@@ -135,6 +147,24 @@ def test_an_agent_reads_every_step_in_full_from_the_application(tmp_path, monkey
         assert [(s["id"], s["parentId"], s["description"]) for s in shown["steps"]] == [
             (PARENT, None, DESCRIPTION), (CHILD, PARENT, CHILD_DESCRIPTION)]
         assert all(isinstance(s["revision"], int) for s in shown["steps"])
+
+        deliverable = write(f"/roadmaps/{roadmap['id']}/deliverables", {
+            "title": "Streaming parser", "stepIds": [CHILD],
+            "requirements": [{"text": "Measure reads", "checked": True, "verificationNote": "Measured a fresh run"}],
+        }, "create-parser-deliverable")
+        deliverable_path = f"/deliverables/{deliverable['id']}"
+        ready = write(deliverable_path + "/submit", {"revision": deliverable["revision"]}, "submit-parser-deliverable")
+        write(deliverable_path + "/accept", {"revision": ready["revision"], "note": "Measurements reviewed"},
+              "accept-parser-deliverable")
+
+        items = run("roadmap", "deliverables", roadmap["id"])["items"]
+        assert [(item["id"], item["status"]) for item in items] == [(deliverable["id"], "accepted")]
+        assert run("roadmap", "deliverable", deliverable["id"])["stepIds"] == [CHILD]
+        assert run("step", "deliverables", CHILD)["items"] == items
+        history = run("roadmap", "deliverable-history", deliverable["id"])
+        [acceptance] = history["items"]
+        assert (acceptance["revision"], acceptance["note"]) == (ready["revision"], "Measurements reviewed")
+        assert acceptance["snapshot"]["requirements"][0]["verificationNote"] == "Measured a fresh run"
 
         code = cli.main(["agent", "step", "show", ID])
         assert code == 1 and "HTTP 404" in capsys.readouterr().err

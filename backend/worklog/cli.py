@@ -1231,6 +1231,9 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
             return client.request("GET", f"/roadmaps/{args.id}/deliverables?{query}")
         if args.roadmap_action == "deliverable":
             return client.request("GET", f"/deliverables/{args.id}")
+        if args.roadmap_action == "deliverable-history":
+            query = _coordination_query(args, "limit", "offset")
+            return client.request("GET", f"/deliverables/{args.id}/history" + query)
         if args.roadmap_action == "dispatch":
             query = _coordination_query(args, "waveId", "repositoryId", "includeDone")
             return client.request("GET", f"/roadmaps/{args.id}/dispatch" + query)
@@ -1250,7 +1253,10 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
             payload["commitSha"] = args.commit
         return client.request("POST", f"/waves/{args.id}/repins/report", payload, request_id=args.request_id)
     if args.agent_action == "step":
-        return client.request("GET", "/steps/" + args.id)
+        route = "/steps/" + args.id
+        if args.step_action == "deliverables":
+            route += "/deliverables" + _coordination_query(args, "limit", "offset")
+        return client.request("GET", route)
     if args.agent_action == "proposals":
         proposal_query = {**({"status": args.status} if args.status else {}), "limit": args.limit, "offset": args.offset}
         return client.request("GET", "/proposals?" + urlencode(proposal_query))
@@ -2431,6 +2437,10 @@ def parser() -> argparse.ArgumentParser:
     deliverable_list.add_argument("--limit", type=int, default=50)
     deliverable_list.add_argument("--offset", type=int, default=0)
     roadmap_actions.add_parser("deliverable", help="Read one deliverable's requirements, steps and evidence").add_argument("id")
+    deliverable_history = roadmap_actions.add_parser("deliverable-history", help="Read acceptance snapshots and lifecycle events")
+    deliverable_history.add_argument("id")
+    deliverable_history.add_argument("--limit", type=int, default=50)
+    deliverable_history.add_argument("--offset", type=int, default=0)
     dispatch_p = roadmap_actions.add_parser("dispatch", help="Repo + Wave execution dispatch view: WIP caps, freezes, re-pins, and queues")
     dispatch_p.add_argument("id")
     dispatch_p.add_argument("--wave", dest="waveId", help="Focus on a specific wave ID")
@@ -2452,8 +2462,13 @@ def parser() -> argparse.ArgumentParser:
     wave_repin.add_argument("--commit", help="Commit SHA")
     wave_repin.add_argument("--request-id", required=True,
                             help="Stable operation key; reuse with the same payload after an uncertain result")
-    step = actions.add_parser("step", help="Read one step's full text, progress and notes, the steps around it and its tracked chats")
-    step.add_subparsers(dest="step_action", required=True).add_parser("show").add_argument("id")
+    step = actions.add_parser("step", help="Read a roadmap step or its linked deliverables")
+    step_actions = step.add_subparsers(dest="step_action", required=True)
+    step_actions.add_parser("show", help="Read a step's text, progress, notes, tracked chats and place in the roadmap").add_argument("id")
+    step_deliverables = step_actions.add_parser("deliverables", help="List active deliverables linked to a step")
+    step_deliverables.add_argument("id")
+    step_deliverables.add_argument("--limit", type=int, default=50)
+    step_deliverables.add_argument("--offset", type=int, default=0)
     proposals = actions.add_parser("proposals", help="Proposals you may see, oldest first, 50 at a time by default")
     proposals.add_argument("--status")
     proposals.add_argument("--limit", type=int, default=50)

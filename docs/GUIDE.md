@@ -239,6 +239,8 @@ The editor opens beside the outline, and keeps your unsaved structure as a brows
 4. Check each requirement and give it an available evidence link or a verification note. Use "Save deliverable", then "Submit for review". Press "Accept deliverable" once you've reviewed the proof. Acceptance records the reviewed revision in **History**. Step progress and dispatch use their own rules.
 5. Use "Return to planned" to edit a deliverable that is ready for review. It keeps its checks. Use "Reopen deliverable" on an accepted record. Reopening clears the checks for reverification and preserves the evidence and earlier acceptance. Give a reason for either action.
 
+For a buildable repository, link the approved design as an input and the reviewed Git revision as an output. Require a clean build and setup instructions. Attach the build log and use a verification note to record the setup walkthrough. The roadmap's **Status** view shows how many deliverables are ready for review or accepted.
+
 Agents can propose the same plan and acceptance changes. The "Require my approval for agent proposals" setting determines when those changes apply. To accept a deliverable, the proposal must include an explicit acceptance operation.
 
 ### Execute a roadmap by repository stream and wave
