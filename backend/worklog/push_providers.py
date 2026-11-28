@@ -20,6 +20,7 @@ from .session_launches import (
 )
 
 TIMEOUT_SECONDS = 10
+_RESUME_WARNING = b"Warning: message was queued, but could not resume "
 _SESSION_ID = re.compile(
     r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
 )
@@ -82,8 +83,11 @@ def _submit_codex(chat_id: str, notice: str, *, resume: bool) -> str:
     # optional resume can then emit this fixed warning and still exit 0; classify that separately
     # without retaining or displaying any raw provider output.
     if completed.returncode == 0:
-        warning = b"Warning: message was queued, but could not resume " + chat_id.encode("ascii") + b":"
-        if resume and any(line.startswith(warning) for line in completed.stderr.splitlines()):
+        # Codex CLI 0.167 names the thread ("could not resume thread ID: reason"), for example when
+        # no local app-server daemon is running. Keep matching the form without "thread " as well.
+        thread = chat_id.encode("ascii")
+        warnings = (_RESUME_WARNING + b"thread " + thread + b":", _RESUME_WARNING + thread + b":")
+        if resume and any(line.startswith(warnings) for line in completed.stderr.splitlines()):
             return "queued_resume_warning"
         return "queued"
     # For a non-zero exit, avoid claiming it was not delivered: provider acceptance may have raced.
