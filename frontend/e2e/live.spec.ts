@@ -139,6 +139,69 @@ test("live shows agents taking work, overlapping on repositories and communicati
     builder.token,
   );
 
+  const secondRoadmapTitle = "Live tree B " + suffix;
+  const secondRoadmap = await write("/roadmaps", {
+    title: secondRoadmapTitle,
+    steps: [{ title: "Tree B step " + suffix }],
+  });
+  const secondStepId = secondRoadmap.steps[0].id as string;
+  const secondItemTitle = "Tree B work " + suffix;
+  const secondItem = await write("/work-items", {
+    title: secondItemTitle,
+    roadmapId: secondRoadmap.id,
+    stepId: secondStepId,
+  });
+  const secondAgentLabel = "Tree B builder " + suffix;
+  const secondAgent = await write("/credentials", { label: secondAgentLabel });
+  const secondRun = await write(
+    "/agent-runs",
+    {
+      clientRunKey: "tree-b-" + suffix,
+      displayName: "Tree B run",
+      provider: "codex",
+    },
+    secondAgent.token,
+  );
+  await write(
+    "/participations",
+    {
+      runId: secondRun.id,
+      itemId: secondItem.id,
+      description: "Working on tree B",
+    },
+    secondAgent.token,
+  );
+
+  const revokedLabel = "Revoked live agent " + suffix;
+  const revokedAgent = await write("/credentials", { label: revokedLabel });
+  const revokedRun = await write(
+    "/agent-runs",
+    {
+      clientRunKey: "revoked-" + suffix,
+      displayName: "Revoked run",
+      provider: "claude",
+    },
+    revokedAgent.token,
+  );
+  await write(
+    "/participations",
+    {
+      runId: revokedRun.id,
+      itemId: item.id,
+      description: "Recently revoked participant",
+    },
+    revokedAgent.token,
+  );
+  const revokeRes = await page.request.post(`/api/v1/credentials/${revokedAgent.id}/revoke`, {
+    headers: {
+      Origin: origin,
+      "X-CSRF-Token": csrfToken,
+      "Idempotency-Key": crypto.randomUUID(),
+    },
+    data: {},
+  });
+  expect(revokeRes.ok(), await revokeRes.text()).toBeTruthy();
+
   await page
     .getByRole("navigation", { name: "Main navigation" })
     .getByRole("link", { name: "Live", exact: true })
@@ -146,12 +209,32 @@ test("live shows agents taking work, overlapping on repositories and communicati
   await expect(
     page.getByRole("heading", { name: "Live", level: 1, exact: true }),
   ).toBeVisible();
-  await page.getByRole("combobox", { name: "Filter by roadmap" }).selectOption(roadmap.id);
+  await page.getByRole("button", { name: "Filter by roadmap trees" }).click();
+  const treeDialog = page.getByRole("dialog", { name: "Roadmap trees filter" });
+  await treeDialog.getByRole("checkbox", { name: new RegExp(roadmapTitle) }).check();
+  await page.keyboard.press("Escape");
   const flow = page.locator(".live-canvas");
   await expect(flow.locator("h3", { hasText: itemTitle })).toBeVisible();
   await expect(flow.locator("h3", { hasText: builderLabel })).toBeVisible();
   await expect(flow.locator("h3", { hasText: reviewerLabel })).toBeVisible();
   await expect(flow.locator("h3", { hasText: repoName })).toBeVisible();
+  // Unselected roadmap tree and revoked agents stay hidden by default.
+  await expect(flow.locator("h3", { hasText: secondAgentLabel })).toHaveCount(0);
+  await expect(flow.locator("h3", { hasText: revokedLabel })).toHaveCount(0);
+  // Toggling Show revoked reveals the recently revoked agent, and selecting a second tree adds it.
+  await page.getByRole("checkbox", { name: "Show revoked" }).check();
+  await expect(flow.locator("h3", { hasText: revokedLabel })).toBeVisible();
+  await page.getByRole("checkbox", { name: "Show revoked" }).uncheck();
+  await expect(flow.locator("h3", { hasText: revokedLabel })).toHaveCount(0);
+  await page.getByRole("button", { name: "Filter by roadmap trees" }).click();
+  await treeDialog.getByRole("checkbox", { name: new RegExp(secondRoadmapTitle) }).check();
+  await page.keyboard.press("Escape");
+  await expect(flow.locator("h3", { hasText: secondAgentLabel })).toBeVisible();
+  await page
+    .locator(".live-filter-strip")
+    .getByRole("button", { name: new RegExp(secondRoadmapTitle) })
+    .click();
+  await expect(flow.locator("h3", { hasText: secondAgentLabel })).toHaveCount(0);
   // Until the filtered answer arrives, the last one stays: earlier runs' repositories may show too.
   const repoCard = flow.locator(".live-card", { hasText: repoName });
   await expect(repoCard.getByText("Overlap: 2 agents")).toBeVisible();
@@ -162,6 +245,10 @@ test("live shows agents taking work, overlapping on repositories and communicati
     page.locator(".live-summary > div", { hasText: label }).locator("dd");
   await expect(tile("Needs you")).toHaveText("1");
   await expect(tile("Waiting on agents")).toHaveText("1");
+
+  await page.getByRole("button", { name: "Compact", exact: true }).click();
+  await expect(flow).toHaveClass(/is-compact/);
+  await page.getByRole("button", { name: "Compact", exact: true }).click();
 
   await page.getByRole("button", { name: "Swimlanes", exact: true }).click();
   await expect(
@@ -205,7 +292,7 @@ test("live shows agents taking work, overlapping on repositories and communicati
     .click();
   await expect(page).toHaveURL(new RegExp(`#roadmaps/${roadmap.id}/live$`));
   await expect(
-    page.getByRole("combobox", { name: "Filter by roadmap" }),
+    page.getByRole("button", { name: "Filter by roadmap trees" }),
   ).toHaveCount(0);
   await expect(page.getByText("Overlap: 2 agents")).toBeVisible();
   // The Live tab is the whole of it, so the panel steps aside there.
