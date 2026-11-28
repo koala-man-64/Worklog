@@ -70,7 +70,10 @@ GET /work-items/{id} -> item plus {rank,rankedCount,dailyEntries,notes,attachmen
   the requested ID or alias for `model` and the requested effort for `env.CLAUDE_CODE_EFFORT_LEVEL`.
   An existing `env.ANTHROPIC_MODEL` must also match a requested model. Set only the values you want
   to override. Worklog can create settings for a dedicated checkout slot when the file is absent.
-  It preserves existing settings and clears its own files when recycling the slot.
+  It preserves existing settings and clears its own files when recycling the slot. If its settings
+  file changed during the lease (Claude Code saves permission rules there), Worklog moves it to
+  `claude-checkout-settings/rescued/<lease ID>.settings.local.json` in the data directory, so the next
+  lease starts without it. A settings file the repository tracks stays in place.
 
 ## People and links
 GET /people?archived=false&q= -> list envelope of {id,name,title,team,description,email,phone,chat,location,notes,archived,revision,createdAt,updatedAt,workItemCount,roadmapCount,repositoryCount}; the counts leave out archived targets, and `q` searches every field. POST /people {name,title:'',team:'',description:'',email:'',phone:'',chat:'',location:'',notes:''}. GET /people/{id} -> person plus {roadmaps:[{linkId,personId,roadmapId,relationship,createdAt,roadmap}],workItems:[{linkId,personId,itemId,relationship,createdAt,item}],repositories:[{linkId,personId,repositoryId,relationship,createdAt,repository}]}. PATCH /people/{id} {revision,name?,title?,team?,description?,email?,phone?,chat?,location?,notes?} changes only the fields it names. POST /people/{id}/archive or /recover {revision}.

@@ -113,8 +113,10 @@ desktop app to begin the task. For Codex and Claude, **Model** accepts an ID or 
 **Reasoning effort** selects a provider effort level. Worklog passes these optional settings to the
 CLI during preparation. For Claude, Worklog also uses project-local settings so the selections
 carry into Desktop. It can create those settings in a managed checkout and clears its files when
-the slot is recycled. For your own folder, set matching values in .claude/settings.local.json
-before launching. See the desktop sessions section of the API guide for the keys.
+the slot is recycled, keeping a copy of a file Claude changed in the data directory's
+claude-checkout-settings/rescued folder. For your own folder, set matching values in
+.claude/settings.local.json before launching. See the desktop sessions section of the API guide
+for the keys.
 Preparation uses the installed CLI and your local provider profile;
 Claude uses its desktop subscription login. The prompt is sent to that provider during preparation.
 The CLI exits before the desktop handoff, so it does not keep working in the background.

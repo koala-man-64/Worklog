@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from . import active_sessions, antigravity_sessions, slot_worktrees, worktree_claims
-from .claude_settings import ManagedClaudeSettings, require_claude_settings
+from .claude_settings import ManagedClaudeSettings, require_slot_settings
 from .common import AppError, event, now, require_revision, text, uid
 from .db import Database
 from .discussions import communication_actor, identity_chat
@@ -692,7 +692,7 @@ class LeaseService:
     def require_claude_slot_settings(self, lease_id: str, cwd: str, options: dict[str, str]) -> None:
         with self._claude_settings_lock, self.db.read() as c:
             self._require_slot_branch(cwd, self._require_active_claude_slot(c, lease_id, cwd))
-            require_claude_settings(cwd, options)
+            require_slot_settings(cwd, options)
 
     def _clear_claude_slot(self, slot: Path) -> None:
         with self._claude_settings_lock:
