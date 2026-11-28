@@ -8962,6 +8962,25 @@
               ],
               "title": "Roadmapid"
             }
+          },
+          {
+            "name": "roadmapIds",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Roadmapids"
+            }
           }
         ],
         "responses": {
@@ -11820,6 +11839,25 @@
             }
           },
           {
+            "name": "roadmapIds",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Roadmapids"
+            }
+          },
+          {
             "name": "windowMinutes",
             "in": "query",
             "required": false,
@@ -11839,6 +11877,22 @@
               "type": "boolean",
               "default": false,
               "title": "Includeidle"
+            }
+          },
+          {
+            "name": "includeRevoked",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Includerevoked"
             }
           }
         ],

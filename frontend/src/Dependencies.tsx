@@ -371,14 +371,22 @@ export function DependencyCount({ count }: { count: number }) {
 
 export function LiveDependencyWaits({
   roadmapId,
+  roadmapIds,
   paused,
   refreshMs,
 }: {
   roadmapId?: string;
+  roadmapIds?: string[];
   paused: boolean;
   refreshMs: number;
 }) {
-  const suffix = roadmapId ? `?roadmapId=${encodeURIComponent(roadmapId)}` : "";
+  const ids = roadmapId ? [roadmapId] : (roadmapIds ?? []).filter(Boolean);
+  const suffix =
+    ids.length === 1
+      ? `?roadmapId=${encodeURIComponent(ids[0])}`
+      : ids.length > 1
+        ? `?${ids.map((id) => `roadmapIds=${encodeURIComponent(id)}`).join("&")}`
+        : "";
   const query = useData<Answer<"/api/v1/dependencies/waits">>(
     `/dependencies/waits${suffix}`,
     paused ? undefined : refreshMs,

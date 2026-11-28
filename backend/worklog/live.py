@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from collections import defaultdict, deque
+from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -101,12 +102,15 @@ class LiveService:
         c: sqlite3.Connection,
         found_sessions: list[dict],
         roadmap_id: str | None = None,
+        roadmap_ids: Iterable[str] | None = None,
         window_minutes: int = 60,
         include_idle: bool = False,
+        include_revoked: bool | None = None,
     ) -> dict:
         generated = now()
         cutoff_dt = datetime.now(UTC) - timedelta(minutes=window_minutes)
         cutoff = cutoff_dt.isoformat()
+        exclude_revoked = include_revoked is False
 
         def recent(value: str | None) -> bool:
             parsed = _parse(value)
@@ -114,16 +118,25 @@ class LiveService:
 
         roadmaps_list = [dict(r) for r in c.execute(f"SELECT {_shown(c, 'roadmaps')} FROM roadmaps")]
         roadmaps = {r["id"]: r for r in roadmaps_list}
-        if roadmap_id is not None and roadmap_id not in roadmaps:
-            raise AppError(404, "not_found", "Roadmap not found")
-        scoped: set[str] | None = None
+        selected_roots: list[str] = []
         if roadmap_id is not None:
-            scoped = {roadmap_id}
+            selected_roots.append(roadmap_id)
+        if roadmap_ids:
+            for rid in roadmap_ids:
+                if rid and rid not in selected_roots:
+                    selected_roots.append(rid)
+        selected_root_set = set(selected_roots)
+        for rid in selected_roots:
+            if rid not in roadmaps:
+                raise AppError(404, "not_found", "Roadmap not found")
+        scoped: set[str] | None = None
+        if selected_roots:
+            scoped = set(selected_roots)
             children: dict[str, list[str]] = defaultdict(list)
             for roadmap in roadmaps_list:
                 if roadmap["parent_id"]:
                     children[roadmap["parent_id"]].append(roadmap["id"])
-            queue = deque([roadmap_id])
+            queue = deque(selected_roots)
             while queue:
                 parent = queue.popleft()
                 for child in children.get(parent, []):
@@ -503,6 +516,14 @@ class LiveService:
             )
         ]
 
+        agent_rows = [
+            dict(r)
+            for r in c.execute(
+                f"SELECT a.rowid AS _rowid,a.*,{LIVE_AGENT} AS active FROM communication_agents a"
+            )
+        ]
+        revoked_agent_ids = {a["id"] for a in agent_rows if not bool(a["active"])}
+
         # Work shows for one of two reasons. Its own: something on it waits on the person or
         # changed inside the window, whoever did it. Or an agent's: a tie from an agent the map
         # shows, which enrich settles once it knows which agents those are. So every record with a
@@ -513,13 +534,33 @@ class LiveService:
             target
             for message in messages
             if recent(message["created_at"])
+            and not (
+                exclude_revoked
+                and message["author_kind"] == "agent"
+                and message["author_id"] in revoked_agent_ids
+            )
             for target in discussion_contexts.get(message["discussion_id"], [])
         )
         for proposal in proposals:
-            if proposal["status"] == "approved" and recent(proposal["updated_at"]):
+            if (
+                proposal["status"] == "approved"
+                and recent(proposal["updated_at"])
+                and not (
+                    exclude_revoked
+                    and proposal["actor_kind"] == "agent"
+                    and proposal["actor_id"] in revoked_agent_ids
+                )
+            ):
                 own.update(proposal_ties[proposal["id"]])
         for offer in offers:
-            if offer["state"] == "pending" or recent(offer["ended_at"] or offer["created_at"]):
+            if offer["state"] == "pending" or (
+                recent(offer["ended_at"] or offer["created_at"])
+                and not (
+                    exclude_revoked
+                    and offer["from_id"] in revoked_agent_ids
+                    and offer["to_id"] in revoked_agent_ids
+                )
+            ):
                 own.add((offer["context_type"], offer["context_id"]))
         tied = {identity for _, identity in work_reasons}
 
@@ -542,7 +583,7 @@ class LiveService:
         for roadmap in roadmaps_list:
             if scoped is not None:
                 if roadmap["id"] in scoped and (
-                    not roadmap["archived"] or roadmap["id"] == roadmap_id
+                    not roadmap["archived"] or roadmap["id"] in selected_root_set
                 ):
                     include_roadmaps.add(roadmap["id"])
             elif not roadmap["archived"]:
@@ -594,12 +635,6 @@ class LiveService:
         )
         included_work_ids = {identity for _, identity in included_work_order}
 
-        agent_rows = [
-            dict(r)
-            for r in c.execute(
-                f"SELECT a.rowid AS _rowid,a.*,{LIVE_AGENT} AS active FROM communication_agents a"
-            )
-        ]
         agent_labels = {a["id"]: a["label"] for a in agent_rows}
         runs_by_agent: dict[str, list[dict]] = defaultdict(list)
         for run in runs:
@@ -829,7 +864,9 @@ class LiveService:
         candidate_agent_ids = {
             a["id"]
             for a in agent_nodes
-            if a["_scope"] and (include_idle or a["_keep"] or a["chats"])
+            if a["_scope"]
+            and (not exclude_revoked or a["active"])
+            and (include_idle or a["_keep"] or a["chats"])
         }
 
         work_edges: list[dict] = []
@@ -1093,7 +1130,9 @@ class LiveService:
                         ),
                         "href": _href("roadmaps", identity),
                         "_own": bool(
-                            questions or ("roadmap", identity) in own or identity == roadmap_id
+                            questions
+                            or ("roadmap", identity) in own
+                            or identity in selected_root_set
                         ),
                     }
                 )
@@ -1675,6 +1714,13 @@ class LiveService:
                     }
                 )
 
+        if exclude_revoked and revoked_agent_ids:
+            pulses = [
+                pulse
+                for pulse in pulses
+                if not (pulse["actorKind"] == "agent" and pulse["actorId"] in revoked_agent_ids)
+            ]
+
         untracked = (
             []
             if scoped is not None
@@ -1684,11 +1730,12 @@ class LiveService:
                 if not any(not tracked["archived"] for tracked in session["tracked"])
             ]
         )
+        single_roadmap_id = selected_roots[0] if len(selected_roots) == 1 else None
         return {
             "generatedAt": generated,
             "windowMinutes": int(window_minutes),
-            "roadmapId": roadmap_id,
-            "roadmapTitle": roadmaps[roadmap_id]["title"] if roadmap_id else None,
+            "roadmapId": single_roadmap_id,
+            "roadmapTitle": roadmaps[single_roadmap_id]["title"] if single_roadmap_id else None,
             "summary": {},
             "roadmaps": list(roadmap_options),
             "work": list(work_nodes),
@@ -1701,6 +1748,7 @@ class LiveService:
             "lanes": list(lanes),
             "pulses": list(pulses),
             "_scoped": bool(scoped is not None),
+            "_scopedRoadmaps": set(scoped) if scoped is not None else None,
             "_includeIdle": bool(include_idle),
             "_cutoff": cutoff,
             "_workIndex": work_index,
@@ -1933,11 +1981,11 @@ class LiveService:
         # any window and whichever agents show; what waits on agents is kept apart from it.
         pending = draft["_pendingRequests"]
         waiting_proposals = draft["_waitingProposals"]
+        scoped_roadmaps = draft["_scopedRoadmaps"]
         open_questions = sum(
             option["openQuestions"]
             for option in draft["roadmaps"]
-            if draft["roadmapId"] is None
-            or option["id"] in {work["roadmapId"] for work in draft["work"]}
+            if scoped_roadmaps is None or option["id"] in scoped_roadmaps
         )
         draft["summary"] = {
             # A report nobody has renewed is not an agent at work.

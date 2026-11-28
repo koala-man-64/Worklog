@@ -29,7 +29,11 @@ const snapshot: LiveSnapshot = {
     openQuestions: 2,
     needsYou: 4,
   },
-  roadmaps: [{ id: "road-1", title: "Ship Worklog", parentId: null, openQuestions: 2 }],
+  roadmaps: [
+    { id: "road-1", title: "Ship Worklog", parentId: null, openQuestions: 2 },
+    { id: "road-1-sub", title: "Live sub-plan", parentId: "road-1", openQuestions: 0 },
+    { id: "road-2", title: "Watershed ops", parentId: null, openQuestions: 1 },
+  ],
   work: [
     {
       id: "step-1",
@@ -275,17 +279,19 @@ const snapshot: LiveSnapshot = {
 };
 
 beforeEach(() => {
+  window.localStorage.clear();
   mocks.useData.mockReset();
   mocks.useData.mockReturnValue({ data: snapshot, error: null, isPending: false });
 });
 
 describe("Live", () => {
-  it("renders the flow top down with provenance, overlap, connections and pulses", () => {
+  it("renders the flow top down with provenance, relative age, overlap, active connections and pulses", () => {
     const { container } = render(<Live />);
     expect(screen.getByRole("button", { name: "Flow map" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("Plans & work")).toBeInTheDocument();
     expect(screen.getByText("Visualize agent work", { selector: ".live-card h3" })).toBeInTheDocument();
     expect(screen.getByText("Working")).toBeInTheDocument();
+    expect(screen.getByText("1m ago")).toBeInTheDocument();
     expect(screen.getAllByText(/Declared:/, { selector: ".live-provenance" })[0]).toHaveTextContent("reporting");
     expect(screen.getByText("Worklog", { selector: ".live-repo-tier h3" })).toBeInTheDocument();
     expect(screen.getByText("Slots 2/2")).toBeInTheDocument();
@@ -294,8 +300,9 @@ describe("Live", () => {
     expect(screen.getByText("Overlap: 2 agents")).toBeInTheDocument();
     expect(screen.getByText("visualize-live")).toBeInTheDocument();
     expect(screen.getByText("Recent pulses", { selector: ".live-pulses h2" })).toBeInTheDocument();
+    // Active line mode draws active work/repo edges and pending comm edges by default.
     const paths = [...container.querySelectorAll("path[data-edge-id]")];
-    expect(paths).toHaveLength(4);
+    expect(paths).toHaveLength(3);
     for (const path of paths) expect(path.getAttribute("d")).toMatch(/^M .+ [CQ] /);
     expect(container.querySelector('[data-edge-id="work-edge-1"]')).toHaveAttribute(
       "d",
@@ -316,8 +323,13 @@ describe("Live", () => {
     expect(screen.getByRole("link", { name: "Review proposal" })).toHaveAttribute("href", "#review/proposal-1");
     expect(container.querySelector('[data-node-key="agent:agent-2"]')).toHaveClass("is-dimmed");
     expect(container.querySelector('[data-node-key="agent:agent-1"]')).toHaveClass("is-highlighted");
+    // Pressing Isolate hides unrelated cards instead of merely dimming them.
+    await user.click(screen.getByRole("button", { name: "Isolate" }));
+    expect(container.querySelector('[data-node-key="agent:agent-2"]')).toBeNull();
+    expect(container.querySelector('[data-node-key="agent:agent-1"]')).not.toBeNull();
     await user.click(screen.getByRole("button", { name: "Clear selection" }));
     expect(screen.queryByRole("complementary", { name: "Selection inspector" })).not.toBeInTheDocument();
+    expect(container.querySelector('[data-node-key="agent:agent-2"]')).not.toBeNull();
     expect(container.querySelector(".live-card.is-dimmed")).toBeNull();
   });
 
@@ -364,22 +376,47 @@ describe("Live", () => {
     expect(within(lanes).getAllByTitle("Review requested").length).toBeGreaterThan(0);
   });
 
-  it("changes activity filters and polling state", async () => {
+  it("filters to specific roadmap trees, toggles old/revoked agents, and updates polling state", async () => {
     // Every 15 seconds, not 5 (audit 3.7, P7): each poll reads the whole live picture.
     const user = userEvent.setup();
     render(<Live />);
     expect(lastRead("/live?")).toEqual([
-      "/live?windowMinutes=60&includeIdle=false",
+      "/live?windowMinutes=60&includeIdle=false&includeRevoked=false",
       15_000,
       { keepPrevious: true },
     ]);
     expect(lastRead("/dependencies/waits")?.[1]).toBe(15_000);
+
+    // Select a single roadmap tree -> uses roadmapId so cache matches RoadmapLivePanel.
+    await user.click(screen.getByRole("button", { name: "Filter by roadmap trees" }));
+    const picker = screen.getByRole("dialog", { name: "Roadmap trees filter" });
+    await user.click(within(picker).getByRole("button", { name: "Expand Ship Worklog" }));
+    expect(within(picker).getByRole("checkbox", { name: /Live sub-plan/ })).toBeInTheDocument();
+    await user.click(within(picker).getByRole("checkbox", { name: /Ship Worklog/ }));
+    expect(lastRead("/live?")?.[0]).toBe(
+      "/live?windowMinutes=60&includeIdle=false&includeRevoked=false&roadmapId=road-1",
+    );
+    expect(lastRead("/dependencies/waits")?.[0]).toBe("/dependencies/waits?roadmapId=road-1");
+    // Child under selected parent is covered and disabled.
+    expect(within(picker).getByRole("checkbox", { name: /Live sub-plan/ })).toBeDisabled();
+
+    // Selecting a second tree switches to multi-tree roadmapIds.
+    await user.click(within(picker).getByRole("checkbox", { name: /Watershed ops/ }));
+    expect(lastRead("/live?")?.[0]).toBe(
+      "/live?windowMinutes=60&includeIdle=false&includeRevoked=false&roadmapIds=road-1&roadmapIds=road-2",
+    );
+    expect(lastRead("/dependencies/waits")?.[0]).toBe(
+      "/dependencies/waits?roadmapIds=road-1&roadmapIds=road-2",
+    );
+    await user.keyboard("{Escape}");
+
     await user.click(screen.getByRole("button", { name: "15m" }));
-    expect(lastRead("/live?")?.[0]).toBe("/live?windowMinutes=15&includeIdle=false");
-    await user.click(screen.getByRole("button", { name: "6h" }));
-    expect(lastRead("/live?")?.[0]).toBe("/live?windowMinutes=360&includeIdle=false");
-    await user.click(screen.getByRole("checkbox", { name: "Show idle, stale and revoked agents" }));
+    expect(lastRead("/live?")?.[0]).toContain("windowMinutes=15");
+    await user.click(screen.getByRole("button", { name: /^All$/ }));
     expect(lastRead("/live?")?.[0]).toContain("includeIdle=true");
+    await user.click(screen.getByRole("checkbox", { name: "Show revoked" }));
+    expect(lastRead("/live?")?.[0]).toContain("includeRevoked=true");
+
     await user.click(screen.getByRole("button", { name: "Pause live updates" }));
     expect(lastRead("/live?")?.[1]).toBeUndefined();
     expect(lastRead("/dependencies/waits")?.[1]).toBeUndefined();
@@ -388,11 +425,99 @@ describe("Live", () => {
     expect(lastRead("/dependencies/waits")?.[1]).toBe(15_000);
   });
 
+  it("supports compact mode, branch capping, display cleanup options, search, and KPI filtering", async () => {
+    const user = userEvent.setup();
+    mocks.useData.mockReturnValue({
+      data: {
+        ...snapshot,
+        work: [
+          ...snapshot.work,
+          {
+            ...snapshot.work[0],
+            id: "step-done",
+            title: "Completed migration",
+            status: "done",
+            agentCount: 1,
+            needsYou: false,
+          },
+        ],
+        agents: [
+          ...snapshot.agents,
+          {
+            ...snapshot.agents[1],
+            id: "agent-idle",
+            label: "Idle veteran",
+            state: "idle",
+            sessionState: null,
+          },
+        ],
+        repositories: [
+          {
+            ...snapshot.repositories[0],
+            branches: ["b1", "b2", "b3", "b4", "b5"],
+          },
+        ],
+        workEdges: [
+          ...snapshot.workEdges,
+          {
+            ...snapshot.workEdges[0],
+            id: "work-edge-done",
+            workId: "step-done",
+          },
+        ],
+      },
+      error: null,
+      isPending: false,
+    });
+    const { container } = render(<Live />);
+    // Default cleanup hides idle agents and done steps, and caps repo branches on cards to 3.
+    expect(screen.queryByText("Idle veteran")).not.toBeInTheDocument();
+    expect(screen.queryByText("Completed migration")).not.toBeInTheDocument();
+    expect(screen.getByText("+2 more")).toBeInTheDocument();
+
+    // Clicking the repo card reveals all 5 branches in the inspector.
+    await user.click(container.querySelector('[data-node-key="repo:repo-1"]')!);
+    const inspector = screen.getByRole("complementary", { name: "Selection inspector" });
+    expect(within(inspector).getByText("b5")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Clear selection" }));
+
+    // Reveal pills bring hidden items back cleanly.
+    await user.click(screen.getByRole("button", { name: /1 idle\/stale hidden/i }));
+    expect(screen.getByText("Idle veteran")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /1 done hidden/i }));
+    expect(screen.getByText("Completed migration", { selector: ".live-card h3" })).toBeInTheDocument();
+
+    // Compact mode hides secondary card prose.
+    await user.click(screen.getByRole("button", { name: "Compact" }));
+    expect(container.querySelector(".live-canvas")).toHaveClass("is-compact");
+    expect(container.querySelector(".live-provenance")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Compact" }));
+
+    // Display menu controls connection lines and recent pulses.
+    await user.click(screen.getByRole("button", { name: "Display cleanup options" }));
+    const menu = screen.getByRole("dialog", { name: "Display cleanup options" });
+    await user.click(within(menu).getByRole("button", { name: "Focus only" }));
+    expect(container.querySelectorAll("path[data-edge-id]")).toHaveLength(0);
+    await user.click(within(menu).getByLabelText("Show recent pulses"));
+    expect(screen.queryByText("Recent pulses", { selector: ".live-pulses h2" })).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    // Text filter matches across agents/work/repos.
+    await user.type(screen.getByRole("searchbox", { name: "Filter live view" }), "Reviewer");
+    expect(screen.getByText("Reviewer", { selector: ".live-card h3" })).toBeInTheDocument();
+    expect(screen.queryByText("Idle veteran")).not.toBeInTheDocument();
+    await user.clear(screen.getByRole("searchbox", { name: "Filter live view" }));
+
+    // Clicking Needs you KPI tile filters to work/agents that need the person.
+    await user.click(screen.getByRole("button", { name: "Needs you" }));
+    expect(screen.getByText("Visualize agent work", { selector: ".live-card h3" })).toBeInTheDocument();
+  });
+
   it("pins embedded mode to its roadmap without a selector", () => {
     render(<Live roadmapId="road-pinned" embedded />);
-    expect(screen.queryByRole("combobox", { name: "Filter by roadmap" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Filter by roadmap trees" })).not.toBeInTheDocument();
     expect(lastRead("/live?")?.[0]).toBe(
-      "/live?windowMinutes=60&includeIdle=false&roadmapId=road-pinned",
+      "/live?windowMinutes=60&includeIdle=false&includeRevoked=false&roadmapId=road-pinned",
     );
     expect(lastRead("/dependencies/waits")?.[0]).toBe("/dependencies/waits?roadmapId=road-pinned");
     expect(screen.queryByRole("heading", { name: "Live", level: 1 })).not.toBeInTheDocument();
@@ -421,7 +546,8 @@ describe("Live", () => {
     expect(tiles["Waiting on agents"]).toBe("3");
   });
 
-  it("says a session is not observable only for an agent Worklog cannot find sessions for", () => {
+  it("says a session is not observable only for an agent Worklog cannot find sessions for", async () => {
+    const user = userEvent.setup();
     mocks.useData.mockReturnValue({
       data: {
         ...snapshot,
@@ -435,6 +561,8 @@ describe("Live", () => {
       isPending: false,
     });
     const { container } = render(<Live />);
+    // Switch to Recent so idle agents are shown alongside reporting ones.
+    await user.click(screen.getByRole("button", { name: /^Recent$/ }));
     const session = (id: string) =>
       container.querySelector(`[data-node-key="agent:${id}"] .live-provenance`)?.textContent;
     expect(session("agent-1")).toContain("Session: not observable");
@@ -442,7 +570,8 @@ describe("Live", () => {
     expect(session("agent-3")).toContain("Session: no local session");
   });
 
-  it("keeps the bow of communication lines bounded however many there are", () => {
+  it("keeps the bow of communication lines bounded however many there are", async () => {
+    const user = userEvent.setup();
     mocks.useData.mockReturnValue({
       data: {
         ...snapshot,
@@ -455,6 +584,8 @@ describe("Live", () => {
       isPending: false,
     });
     const { container } = render(<Live />);
+    await user.click(screen.getByRole("button", { name: "Display cleanup options" }));
+    await user.click(within(screen.getByRole("dialog", { name: "Display cleanup options" })).getByRole("button", { name: "All" }));
     const bows = [...container.querySelectorAll(".comm-edge path")].map((path) => {
       const [, fromY, , controlY] = path.getAttribute("d")!.match(/-?\d+(\.\d+)?/g)!.map(Number);
       return controlY - fromY;
@@ -465,7 +596,8 @@ describe("Live", () => {
     expect(Math.max(...bows)).toBeLessThanOrEqual(82);
   });
 
-  it("groups each step with its items, puts worked-on roadmaps nearest the agents, and orders agents and repositories under what they connect to", () => {
+  it("groups each step with its items, puts worked-on roadmaps nearest the agents, and orders agents and repositories under what they connect to", async () => {
+    const user = userEvent.setup();
     const work = (id: string, kind: "roadmap" | "step" | "item", parentId: string | null) => ({
       ...snapshot.work[1],
       id,
@@ -489,7 +621,7 @@ describe("Live", () => {
           work("item-b", "item", "step-b"),
           work("item-a", "item", "step-a"),
           // A roadmap nobody works on moves ahead, away from the agents.
-          { ...work("road-2", "roadmap", null), roadmapId: "road-2" },
+          { ...work("road-2", "roadmap", null), roadmapId: "road-2", agentCount: 0 },
         ],
         agents: [{ ...snapshot.agents[0], id: "agent-x" }, { ...snapshot.agents[1], id: "agent-y" }],
         repositories: [{ ...snapshot.repositories[0], id: "repo-p" }, { ...snapshot.repositories[0], id: "repo-q", name: "Other" }],
@@ -501,6 +633,8 @@ describe("Live", () => {
       isPending: false,
     });
     const { container } = render(<Live />);
+    // Reveal the unconnected roadmap so its tier placement is verified too.
+    await user.click(screen.getByRole("button", { name: /1 quiet work hidden/i }));
     const order = (tier: string) =>
       [...container.querySelectorAll(`.${tier} [data-node-key]`)].map((node) => node.getAttribute("data-node-key"));
     expect(order("live-work-tier")).toEqual(["work:road-2", "work:road-1", "work:step-a", "work:item-a", "work:step-b", "work:item-b"]);
