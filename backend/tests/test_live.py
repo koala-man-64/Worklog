@@ -1010,6 +1010,139 @@ def test_live_surfaces_untracked_running_session(client, monkeypatch):
     assert tied["untrackedSessions"] == []
 
 
+def test_live_scopes_multiple_roadmap_trees_and_controls_revoked_agents(client):
+    at, old = stamp(), days_ago(3)
+    agent_a, agent_b, agent_c, old_idle, recent_revoked, old_revoked = (
+        agent(client, "Tree A agent"),
+        agent(client, "Tree B agent"),
+        agent(client, "Tree C agent"),
+        agent(client, "Old idle agent"),
+        agent(client, "Recent revoked agent"),
+        agent(client, "Old revoked agent"),
+    )
+    with client.app.state.db.transaction() as c:
+        for identity, title, parent in (
+            ("tree-a", "Tree A", None),
+            ("tree-a-sub", "Tree A Sub", "tree-a"),
+            ("tree-b", "Tree B", None),
+            ("tree-c", "Tree C", None),
+        ):
+            c.execute(
+                "INSERT INTO roadmaps VALUES(?,?,?,?,?,?,?,?)",
+                (identity, title, "", 1, 0, at, at, parent),
+            )
+        for identity, roadmap in (
+            ("item-a-sub", "tree-a-sub"),
+            ("item-b", "tree-b"),
+            ("item-c", "tree-c"),
+            ("item-revoked", "tree-a"),
+        ):
+            c.execute(
+                "INSERT INTO work_items VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                (identity, identity, "", "doing", None, None, 1, 0, 1, at, at, roadmap),
+            )
+        for identity, roadmap in (("q-a", "tree-a-sub"), ("q-b", "tree-b"), ("q-c", "tree-c")):
+            c.execute(
+                "INSERT INTO roadmap_questions VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (identity, roadmap, f"Question {identity}?", "", "", "open", 0, 1, at, at),
+            )
+        for identity, name in (("repo-a", "Repo A"), ("repo-b", "Repo B"), ("repo-c", "Repo C")):
+            c.execute(
+                "INSERT INTO repositories(id,name,created_at,updated_at) VALUES(?,?,?,?)",
+                (identity, name, at, at),
+            )
+        reports(c, agent_a, "ta", "item-a-sub", at, repository="repo-a")
+        reports(c, agent_b, "tb", "item-b", at, repository="repo-b")
+        reports(c, agent_c, "tc", "item-c", at, repository="repo-c")
+        reports(c, old_idle, "idle", "item-a-sub", old, released=True)
+        reports(c, recent_revoked, "rev-now", "item-revoked", at, released=True)
+        reports(c, old_revoked, "rev-old", "item-a-sub", old, released=True)
+        c.execute(
+            "INSERT INTO discussions VALUES(?,?,?,?,?,?,?)",
+            ("rev-thread", "Revoked note", 0, 1, at, at, None),
+        )
+        c.execute(
+            "INSERT INTO discussion_contexts VALUES(?,?,?,?,?,?,?)",
+            ("rev-thread", "item", "item-revoked", 0, "local-user", "human", at),
+        )
+        c.execute(
+            INSERT_MESSAGE,
+            (
+                "rev-msg",
+                "rev-thread",
+                "Final handoff before revoke",
+                recent_revoked["agentId"],
+                "Recent revoked agent",
+                "agent",
+                at,
+                None,
+                None,
+                None,
+            ),
+        )
+        c.execute(
+            "UPDATE credentials SET revoked=1 WHERE id IN (?,?)",
+            (recent_revoked["id"], old_revoked["id"]),
+        )
+
+    # Multi-tree scoping returns the union of tree-a (including tree-a-sub) and tree-b, excluding tree-c.
+    multi = client.get(
+        "/api/v1/live",
+        params=[("roadmapIds", "tree-a"), ("roadmapIds", "tree-b"), ("includeRevoked", "false")],
+    ).json()
+    assert multi["roadmapId"] is None and multi["roadmapTitle"] is None
+    assert {node["id"] for node in multi["agents"]} == {agent_a["agentId"], agent_b["agentId"]}
+    assert {node["id"] for node in multi["repositories"]} == {"repo-a", "repo-b"}
+    assert {node["id"] for node in multi["work"]} == {
+        "tree-a",
+        "tree-a-sub",
+        "item-a-sub",
+        "tree-b",
+        "item-b",
+    }
+    assert multi["summary"]["openQuestions"] == 2
+    assert all(pulse["actorId"] != recent_revoked["agentId"] for pulse in multi["pulses"])
+
+    # Including revoked brings back recent_revoked, its message pulse, and item-revoked.
+    with_revoked = client.get(
+        "/api/v1/live",
+        params=[("roadmapIds", "tree-a"), ("roadmapIds", "tree-b"), ("includeRevoked", "true")],
+    ).json()
+    assert recent_revoked["agentId"] in {node["id"] for node in with_revoked["agents"]}
+    assert "item-revoked" in {node["id"] for node in with_revoked["work"]}
+    assert any(pulse["actorId"] == recent_revoked["agentId"] for pulse in with_revoked["pulses"])
+
+    # includeIdle=true with includeRevoked=false surfaces older live idle agents without revoked ones.
+    idle_live_only = client.get(
+        "/api/v1/live",
+        params={"roadmapId": "tree-a", "includeIdle": True, "includeRevoked": False},
+    ).json()
+    assert {node["id"] for node in idle_live_only["agents"]} == {
+        agent_a["agentId"],
+        old_idle["agentId"],
+    }
+
+    # includeIdle=true with includeRevoked=true surfaces historical revoked agents on that tree too.
+    idle_all = client.get(
+        "/api/v1/live",
+        params={"roadmapId": "tree-a", "includeIdle": True, "includeRevoked": True},
+    ).json()
+    assert {node["id"] for node in idle_all["agents"]} == {
+        agent_a["agentId"],
+        old_idle["agentId"],
+        recent_revoked["agentId"],
+        old_revoked["agentId"],
+    }
+
+    # Single tree via roadmapIds behaves identically to roadmapId, and unknown IDs still return 404.
+    single = client.get("/api/v1/live", params=[("roadmapIds", "tree-b")]).json()
+    assert single["roadmapId"] == "tree-b" and single["roadmapTitle"] == "Tree B"
+    missing = client.get(
+        "/api/v1/live", params=[("roadmapIds", "tree-a"), ("roadmapIds", "no-such-tree")]
+    )
+    assert missing.status_code == 404 and missing.json()["error"]["code"] == "not_found"
+
+
 def test_live_is_person_only(client):
     issued = agent(client, "No live access")
     response = client.get("/api/v1/live", headers={"Authorization": "Bearer " + issued["token"]})

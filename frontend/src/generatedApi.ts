@@ -17160,6 +17160,7 @@ export interface operations {
         parameters: {
             query?: {
                 roadmapId?: string | null;
+                roadmapIds?: string[] | null;
             };
             header?: never;
             path?: never;
@@ -18909,8 +18910,10 @@ export interface operations {
         parameters: {
             query?: {
                 roadmapId?: string | null;
+                roadmapIds?: string[] | null;
                 windowMinutes?: number;
                 includeIdle?: boolean;
+                includeRevoked?: boolean | null;
             };
             header?: never;
             path?: never;

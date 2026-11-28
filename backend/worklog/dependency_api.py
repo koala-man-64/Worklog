@@ -24,8 +24,13 @@ def install_dependency_routes(
         return db.snapshot(lambda conn: {"openByStep": dependencies.open_by_step(conn, identity)})
 
     @app.get("/api/v1/dependencies/waits", response_model=out.DependencyWaits)
-    def reportable_waits(roadmapId: str | None = None) -> dict:
-        return db.snapshot(lambda conn: {"items": dependencies.pending_waits(conn, roadmapId)})
+    def reportable_waits(
+        roadmapId: str | None = None,
+        roadmapIds: list[str] | None = Query(None),
+    ) -> dict:
+        return db.snapshot(
+            lambda conn: {"items": dependencies.pending_waits(conn, roadmapId, roadmapIds)}
+        )
 
     @app.get("/api/v1/dependencies/{identity}", response_model=out.DependencyLink)
     def dependency(identity: str) -> dict:

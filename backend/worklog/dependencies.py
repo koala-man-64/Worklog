@@ -183,18 +183,33 @@ def open_by_step(conn: sqlite3.Connection, roadmap_id: str) -> dict[str, int]:
     return counts
 
 
-def pending_waits(conn: sqlite3.Connection, roadmap_id: str | None) -> list[dict]:
+def pending_waits(
+    conn: sqlite3.Connection,
+    roadmap_id: str | None = None,
+    roadmap_ids: Iterable[str] | None = None,
+) -> list[dict]:
     edges = conn.execute(
         "SELECT * FROM dependencies WHERE dependent_type='agent' AND reported_by_agent_id IS NOT NULL "
         "AND archived=0 AND confirmed_at IS NULL ORDER BY created_at,id",
     ).fetchall()
     records = _load_rows(conn, edges)
-    if roadmap_id is None:
+    roots: list[str] = []
+    if roadmap_id is not None:
+        roots.append(roadmap_id)
+    if roadmap_ids:
+        for rid in roadmap_ids:
+            if rid and rid not in roots:
+                roots.append(rid)
+    if not roots:
         return [_link(edge, records) for edge in edges]
+    placeholders = ",".join("?" for _ in roots)
     family = {row[0] for row in conn.execute(
-        "WITH RECURSIVE family(id) AS (SELECT id FROM roadmaps WHERE id=? UNION "
-        "SELECT r.id FROM roadmaps r JOIN family f ON r.parent_id=f.id) SELECT id FROM family", (roadmap_id,),
+        f"WITH RECURSIVE family(id) AS (SELECT id FROM roadmaps WHERE id IN ({placeholders}) UNION "
+        "SELECT r.id FROM roadmaps r JOIN family f ON r.parent_id=f.id) SELECT id FROM family",
+        tuple(roots),
     )}
+    if not family:
+        return []
     repository_ids = {row[0] for row in rows_in(
         conn, "WITH scope(id) AS (SELECT id FROM roadmaps WHERE id IN ({})) "
               "SELECT sr.repository_id FROM step_repositories sr JOIN steps s ON s.id=sr.step_id "

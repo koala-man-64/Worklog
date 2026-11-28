@@ -122,8 +122,15 @@ def test_wait_is_scoped_and_owned_by_the_continued_agent(client, agent_http):
     other_wait = ok(write(client, "POST", "/dependencies/waits", {
         **payload, "context": _ref("item", separate_work["id"]),
     }, reporter))
+    second_step_id = str(uuid4())
+    second_roadmap = _roadmap(client, "Second tree", [{"id": second_step_id, "title": "Second step", "position": 0}])
+    second_wait = ok(write(client, "POST", "/dependencies/waits", {
+        **payload, "context": _ref("step", second_step_id),
+    }, reporter))
     assert ok(read(client, scoped)) == {"items": [waiting]}
-    assert _links(client, prerequisite, other)["dependents"] == [waiting, assigned, other_wait]
+    multi_scoped = f"/dependencies/waits?roadmapIds={roadmap['id']}&roadmapIds={second_roadmap['id']}"
+    assert ok(read(client, multi_scoped)) == {"items": [waiting, second_wait]}
+    assert _links(client, prerequisite, other)["dependents"] == [waiting, assigned, other_wait, second_wait]
     refused(write(client, "POST", f"/dependencies/{waiting['id']}/confirm", {"revision": 1}, other), 403, "agent_scope")
     refused(write(client, "POST", "/dependencies", {"dependent": _ref("step", step_id),
             "prerequisite": prerequisite, "condition": "Publish"}, reporter), 403, "agent_scope")
@@ -135,7 +142,8 @@ def test_wait_is_scoped_and_owned_by_the_continued_agent(client, agent_http):
     confirmed = ok(write(client, "POST", f"/dependencies/{waiting['id']}/confirm", {"revision": 1}, continued))
     assert confirmed["state"] == "satisfied"
     assert ok(read(client, scoped)) == {"items": []}
-    assert ok(read(client, "/dependencies/waits")) == {"items": [other_wait]}
+    assert ok(read(client, multi_scoped)) == {"items": [second_wait]}
+    assert ok(read(client, "/dependencies/waits")) == {"items": [other_wait, second_wait]}
     again = ok(write(client, "POST", "/dependencies/waits", payload, continued))
     assert again["id"] != waiting["id"]
     assert ok(write(client, "POST", f"/dependencies/{again['id']}/archive", {"revision": 1}, continued))["archived"]
