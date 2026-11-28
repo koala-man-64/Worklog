@@ -152,8 +152,10 @@ test("live shows agents taking work, overlapping on repositories and communicati
   await expect(flow.locator("h3", { hasText: builderLabel })).toBeVisible();
   await expect(flow.locator("h3", { hasText: reviewerLabel })).toBeVisible();
   await expect(flow.locator("h3", { hasText: repoName })).toBeVisible();
-  await expect(flow.getByText("Overlap: 2 agents")).toBeVisible();
-  await expect(flow.getByText("codex/live-ui")).toBeVisible();
+  // Until the filtered answer arrives, the last one stays: earlier runs' repositories may show too.
+  const repoCard = flow.locator(".live-card", { hasText: repoName });
+  await expect(repoCard.getByText("Overlap: 2 agents")).toBeVisible();
+  await expect(repoCard.getByText("codex/live-ui")).toBeVisible();
   await expect(flow.locator("h3", { hasText: quietTitle })).toHaveCount(0);
   // The proposal waits on the person; the builder's request waits on the reviewer.
   const tile = (label: string) =>
@@ -178,6 +180,25 @@ test("live shows agents taking work, overlapping on repositories and communicati
   ).toBeVisible();
 
   await page.goto(`/#roadmaps/${roadmap.id}`);
+  // Beside the roadmap's other views, its Live sits in a panel: each agent with its work and
+  // repository, and nothing nobody works on.
+  const panel = page.getByRole("complementary", { name: "Live activity" });
+  await expect(
+    panel.getByRole("link", { name: builderLabel, exact: true }),
+  ).toBeVisible();
+  const builderTies = panel.getByRole("list", {
+    name: `${builderLabel} works on`,
+  });
+  await expect(
+    builderTies.getByRole("link", { name: itemTitle, exact: true }),
+  ).toBeVisible();
+  await expect(
+    builderTies.getByRole("link", { name: repoName, exact: true }),
+  ).toBeVisible();
+  await expect(builderTies.getByText("codex/live-ui")).toBeVisible();
+  await expect(panel.getByText("Overlap: 2 agents")).toBeVisible();
+  await expect(panel.getByRole("link", { name: quietTitle })).toHaveCount(0);
+
   await page
     .getByRole("navigation", { name: "Roadmap views" })
     .getByRole("link", { name: "Live", exact: true })
@@ -187,4 +208,23 @@ test("live shows agents taking work, overlapping on repositories and communicati
     page.getByRole("combobox", { name: "Filter by roadmap" }),
   ).toHaveCount(0);
   await expect(page.getByText("Overlap: 2 agents")).toBeVisible();
+  // The Live tab is the whole of it, so the panel steps aside there.
+  await expect(panel).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Live panel" })).toHaveCount(0);
+
+  // Hidden, it stays hidden, through a reload too, until the header opens it again.
+  await page.goto(`/#roadmaps/${roadmap.id}/outline`);
+  await panel.getByRole("button", { name: "Hide Live panel" }).click();
+  await expect(panel).toHaveCount(0);
+  await page.reload();
+  await expect(
+    page.getByRole("region", { name: "Plan outline" }),
+  ).toBeVisible();
+  const toggle = page.getByRole("button", { name: "Live panel" });
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await expect(panel).toHaveCount(0);
+  await toggle.click();
+  await expect(
+    panel.getByRole("link", { name: builderLabel, exact: true }),
+  ).toBeVisible();
 });

@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { ResizeHandle } from "./ResizeHandle";
 import { useStoredWidth } from "../hooks";
 // jsdom has no layout, so the panel reports the width its style asks for.
-function ResizablePanel() {
+function ResizablePanel({ side }: { side?: "left" | "right" }) {
   const panel = useRef<HTMLDivElement>(null);
   const stored = useStoredWidth("test-width", 200, 400);
   return (
@@ -27,10 +27,28 @@ function ResizablePanel() {
         max={() => 400}
         onResize={stored.resize}
         onReset={stored.reset}
+        side={side}
       />
     </div>
   );
 }
+it("widens a panel on its right as the handle moves left", async () => {
+  render(<ResizablePanel side="right" />);
+  const handle = screen.getByRole("separator", { name: "Resize panel" });
+  const panel = screen.getByTestId("panel");
+  handle.focus();
+  await userEvent.keyboard("{ArrowLeft}");
+  expect(panel.style.width).toBe("266px");
+  await userEvent.keyboard("{ArrowRight}{ArrowRight}");
+  expect(panel.style.width).toBe("234px");
+  fireEvent.pointerDown(handle, { button: 0, clientX: 500, pointerId: 1 });
+  fireEvent.pointerMove(handle, { clientX: 420, pointerId: 1 });
+  expect(panel.style.width).toBe("314px");
+  fireEvent.pointerMove(handle, { clientX: 900, pointerId: 1 });
+  expect(panel.style.width).toBe("200px");
+  fireEvent.pointerUp(handle, { clientX: 900, pointerId: 1 });
+  expect(localStorage.getItem("test-width")).toBe("200");
+});
 it("resizes a panel from the keyboard within its limits and remembers it", async () => {
   render(<ResizablePanel />);
   const handle = screen.getByRole("separator", { name: "Resize panel" });

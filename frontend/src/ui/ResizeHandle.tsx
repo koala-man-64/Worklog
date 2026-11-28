@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 /**
  * A separator that sets the width of `panel` by pointer drag or arrow keys.
  * Every change starts from the panel's rendered width, so a width the layout
- * clamped never leaves the handle out of step with the pointer.
+ * clamped never leaves the handle out of step with the pointer. A panel on the
+ * handle's right grows as the handle moves left.
  */
 export function ResizeHandle({
   label,
@@ -11,6 +12,7 @@ export function ResizeHandle({
   max,
   onResize,
   onReset,
+  side = "left",
 }: {
   label: string;
   panel: RefObject<HTMLElement | null>;
@@ -20,6 +22,8 @@ export function ResizeHandle({
   /** `done` is false while a drag is still moving. */
   onResize: (width: number, done: boolean) => void;
   onReset: () => void;
+  /** Which side of the handle the panel sits on. */
+  side?: "left" | "right";
 }) {
   const handle = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; from: number; max: number; to?: number }>(
@@ -48,6 +52,8 @@ export function ResizeHandle({
   const fit = (width: number, limit: number) =>
     Math.round(Math.min(Math.max(width, min), Math.max(min, limit)));
   const current = () => panel.current?.getBoundingClientRect().width ?? min;
+  // Moving the handle right widens a panel on its left and narrows one on its right.
+  const grow = side === "left" ? 1 : -1;
   const end = () => {
     const last = drag.current;
     drag.current = null;
@@ -70,9 +76,9 @@ export function ResizeHandle({
       onKeyDown={(e) => {
         const next =
           e.key === "ArrowLeft"
-            ? current() - 16
+            ? current() - 16 * grow
             : e.key === "ArrowRight"
-              ? current() + 16
+              ? current() + 16 * grow
               : e.key === "Home"
                 ? min
                 : e.key === "End"
@@ -93,7 +99,10 @@ export function ResizeHandle({
       onPointerMove={(e) => {
         const active = drag.current;
         if (!active) return;
-        active.to = fit(active.from + e.clientX - active.x, active.max);
+        active.to = fit(
+          active.from + (e.clientX - active.x) * grow,
+          active.max,
+        );
         onResize(active.to, false);
       }}
       onPointerUp={end}
