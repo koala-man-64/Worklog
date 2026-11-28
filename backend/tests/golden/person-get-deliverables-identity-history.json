@@ -1,0 +1,91 @@
+{
+  "body": {
+    "events": [
+      {
+        "actorId": "local-user",
+        "actorKind": "human",
+        "actorLabel": "You",
+        "createdAt": "<time.ffffff+hh:mm>",
+        "kind": "deliverable.accept",
+        "reason": ""
+      },
+      {
+        "actorId": "local-user",
+        "actorKind": "human",
+        "actorLabel": "You",
+        "createdAt": "<time.ffffff+hh:mm>",
+        "kind": "deliverable.submit",
+        "reason": ""
+      },
+      {
+        "actorId": "local-user",
+        "actorKind": "human",
+        "actorLabel": "You",
+        "createdAt": "<time.ffffff+hh:mm>",
+        "kind": "deliverable.create",
+        "reason": ""
+      }
+    ],
+    "items": [
+      {
+        "acceptedAt": "<time.ffffff+hh:mm>",
+        "actor": {
+          "id": "local-user",
+          "kind": "human",
+          "label": "You"
+        },
+        "note": "Build reviewed",
+        "proposalId": null,
+        "revision": 2,
+        "snapshot": {
+          "description": "The parser and its setup instructions",
+          "inputs": [],
+          "outputs": [
+            {
+              "availability": "available",
+              "href": "#repositories/<id3>",
+              "id": "<id3>",
+              "kind": "repository",
+              "label": "worklog",
+              "sha256": null,
+              "sourceRevision": 1,
+              "url": null
+            }
+          ],
+          "requirements": [
+            {
+              "checked": true,
+              "evidence": [
+                {
+                  "availability": "available",
+                  "href": "https://example.com/builds/1",
+                  "id": null,
+                  "kind": "url",
+                  "label": "https://example.com/builds/1",
+                  "sha256": null,
+                  "sourceRevision": null,
+                  "url": "https://example.com/builds/1"
+                }
+              ],
+              "id": "clean-build",
+              "text": "Build from a clean clone",
+              "verificationNote": ""
+            }
+          ],
+          "steps": [
+            {
+              "available": true,
+              "id": "<id1>",
+              "roadmapId": "<id2>",
+              "roadmapTitle": "Plan 2",
+              "title": "Child"
+            }
+          ],
+          "title": "Buildable parser"
+        }
+      }
+    ],
+    "total": 1
+  },
+  "status": 200
+}

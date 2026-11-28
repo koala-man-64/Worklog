@@ -1,0 +1,18 @@
+{
+  "body": {
+    "items": [
+      {
+        "detail": "Plan 2",
+        "id": "<id1>",
+        "title": "Child"
+      },
+      {
+        "detail": "Plan 2",
+        "id": "<id2>",
+        "title": "Parent"
+      }
+    ],
+    "total": 2
+  },
+  "status": 200
+}

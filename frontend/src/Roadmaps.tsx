@@ -55,6 +55,11 @@ import { RepositoryBadges, RepositoryPicker } from "./RepositoryControls";
 import { Discussions } from "./Discussions";
 import { Live } from "./Live";
 import { RoadmapLivePanel } from "./RoadmapLivePanel";
+import {
+  RoadmapDeliverables,
+  RoadmapDeliverablesSummary,
+  StepDeliverables,
+} from "./RoadmapDeliverables";
 import type {
   Answer,
   PlanStep,
@@ -251,6 +256,7 @@ export function Roadmaps({
 const VIEWS = [
   { id: "status", label: "Status" },
   { id: "outline", label: "Outline" },
+  { id: "deliverables", label: "Deliverables" },
   { id: "execution", label: "Execution" },
   { id: "questions", label: "Questions and decisions" },
   { id: "chats", label: "Chats" },
@@ -749,6 +755,7 @@ export function RoadmapDetail({
       ) : (
         <p className="muted">No description yet. Add one with Edit step.</p>
       )}
+      <StepDeliverables roadmapId={id} stepId={selected.id} />
       <DependenciesPanel
         key={selected.id}
         target={{ type: "step", id: selected.id }}
@@ -815,6 +822,7 @@ export function RoadmapDetail({
   );
   const statusView = (
     <>
+      <RoadmapDeliverablesSummary roadmapId={id} />
       <StatusBoard
         id={id}
         road={road}
@@ -1313,6 +1321,12 @@ export function RoadmapDetail({
                   )}
                 </div>
               </div>
+            ) : view === "deliverables" ? (
+              <RoadmapDeliverables
+                roadmapId={id}
+                selectedId={chat}
+                archivedRoadmap={road.archived}
+              />
             ) : view === "execution" ? (
               <RoadmapExecution roadmapId={id} archived={road.archived} openByStep={openByStep} />
             ) : view === "chats" ? (

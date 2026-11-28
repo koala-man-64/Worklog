@@ -32,7 +32,7 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 3. **Act as yourself.** Every later command MUST give `--as NAME` before the group. Your runs, reports, messages, tickets and proposals then carry your own identity.
 4. **One request ID per write.** Give each write a stable `--request-id`: 8-200 printable ASCII characters without spaces. After an uncertain result, rerun with the same ID and the identical payload; it cannot apply twice. A new operation MUST get a new ID. Proposal commands take none (section 7).
 5. **Current revisions.** A revision-checked command MUST carry the revision from your latest read. On `409 conflict`, read the record again and decide afresh; never reapply blindly.
-6. **Proposals for the person's records.** Work items, day entries, scratchpads and notes, roadmaps and step progress, people, links, tracked chats, GitHub references, questions, decisions, repository edits, resources (the person's reference pages) and the files attached to the person's records change only through a proposal the person approves (section 6). You write tickets, discussions, your own runs, participation and updates, and repository registrations directly, and you track your own chat on the work you do (section 5.4); a proposal can also file or change a ticket that belongs with what it creates.
+6. **Proposals for the person's records.** Work items, day entries, scratchpads and notes, roadmaps and step progress, deliverables, people, links, tracked chats, GitHub references, questions, decisions, repository edits, resources (the person's reference pages) and the files attached to the person's records change only through a proposal the person approves (section 6). You write tickets, discussions, your own runs, participation and updates, and repository registrations directly, and you track your own chat on the work you do (section 5.4); a proposal can also file or change a ticket that belongs with what it creates.
 7. **Advisory, not authority.** Participation, ticket assignment, roles and discussion tags reserve nothing and lock nothing, and a fresh report does not prove an agent is running. An acknowledgement means "received and understood", never approval.
 8. **Search first.** Before you investigate a failure, search past tickets, closed ones included: `tickets list --status all --q 'WORDS'`. File a ticket for an issue worth tracking, comment as you learn, and close it with a resolution that says what fixed it.
 9. **Never work around a refusal.** `401` means your identity was revoked: by the person, by the retirement of the agent that registered you, or by a restore. Stop, tell the person, and register again only if they agree. `403 agent_scope` is outside agent authority: propose the change or ask. `429 agent_limit`: report it and do not retry. `403 repository_registration_off`: propose `repository.create`. Section 8 lists every code.
@@ -55,6 +55,7 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 | Note on a roadmap or step | UUID | `title`, `text` | proposal (`note.*`) |
 | Roadmap | UUID | `title`, `overview`, `parentId` for nesting, immutable versions, of which compaction keeps the 20 newest | proposal (`roadmap.*`) |
 | Step | UUID, stable across versions | `title`, `outcome`, `description`, `workClass`, `repositoryIds`; progress open, doing, blocked or done on leaf steps (a parent's follows its children); `retired` | proposal (`step.update`, `step.create`, `step.split`, `step.move`, `progress.set`, `roadmap.revise`) |
+| Deliverable | UUID on its owning roadmap | `title`, `description`, `stepIds`, checklist `requirements`, `inputs`, `outputs`, state (`planned`, `ready_for_review` or `accepted`), `revision` and `archived` | proposal (`deliverable.create`, `deliverable.update`, `deliverable.submit`, `deliverable.accept`, `deliverable.reopen`). The person archives or recovers. |
 | Wave | UUID | `name`, `summary`, `status` planning, active, completed or cancelled; `repositories` (`tier`, `freezeStatus` open, batching or frozen, `frozenRef`); `steps`; consumer `repins` (`pending`, `in_progress`, `verified` or `waived`); `archived` | proposal (`wave.create`, `wave.update`, `wave.steps`); you report `waves repin`; only the person changes status, freezes, verifies/waives or archives |
 | Question, decision | UUID | a question is open or answered | proposal |
 | Person | UUID | `name`, `title`, `team`, `description`, contact details (`email`, `phone`, `chat`, `location`), `notes` (Markdown); tied to work items, roadmaps and repositories, each with a `relationship` (their role there) | proposal (`person.*`) |
@@ -79,11 +80,13 @@ Records are archived, never deleted, and only the person archives or recovers th
 
 | Action | The person | You directly | You by proposal |
 |---|---|---|---|
-| Read work, days, roadmaps, steps, dispatch views, waves, repository queues, people, notes, tickets, resources, discussions, repositories, runs and proposals | yes | yes | - |
+| Read work, days, roadmaps, steps, deliverables, dispatch views, waves, repository queues, people, notes, tickets, resources, discussions, repositories, runs and proposals | yes | yes | - |
 | Read chat transcripts, the Claude Code sessions running on the person's machine, the Agents page, Settings, credentials, backups or the export | yes | no | - |
 | Prepare a Codex or Claude desktop session from a work item; read launch status or open that session | yes | no | - |
 | Start a local Codex or Claude child chat under your registered identity with `chats start` | - | yes | - |
 | Change work items, day entries, notes, roadmaps, progress, steps (including `step.create`, `step.split`, `step.move`), waves (`wave.create`, `wave.update`, `wave.steps`), people, links, tracked chats, GitHub references, questions or decisions | yes | no | yes |
+| Create, edit, submit, accept or reopen deliverables | yes | no | yes |
+| Archive or recover deliverables | yes | no | no |
 | Report consumer re-pin progress against a frozen wave repository (`waves repin`) | yes | yes (`in_progress`) | - |
 | Change wave status, freeze or unfreeze wave repositories, verify or waive re-pins, archive or recover waves, or reorder repository queues | yes | no | no |
 | Track your own chat on a work item, a roadmap or its steps | yes | yes, the chat you registered with | yes |
@@ -135,6 +138,8 @@ worklog agent --as NAME runs start --client-run-key CHAT_ID --display-name 'Pars
 
 ```powershell
 worklog agent --as NAME context
+worklog agent --as NAME roadmap deliverables ROADMAP_ID
+worklog agent --as NAME roadmap deliverable DELIVERABLE_ID
 worklog agent --as NAME roadmap dispatch ROADMAP_ID
 worklog agent --as NAME repositories queue REPOSITORY_ID
 worklog agent --as NAME search 'parser'
@@ -276,6 +281,8 @@ worklog agent --as NAME retire
 | `roadmap outline ID` | - | `{id,title,archived,revision,steps:[{id,title,status,parentId,position,workClass,repositoryIds,waveId}]}`: each step in the plan, retired ones aside, depth-first in outline order, without its text; a parent's status comes from its leaves |
 | `roadmap dispatch ID` | `[--wave WAVE_ID] [--repo REPOSITORY_ID] [--include-done]` | Repo + Wave execution view: `summary`, `waves`, `activeWave`, `repoLanes` (per-repo WIP cap, active writers, doing/competing/queued/blocked steps, freeze state, re-pins), `multiRepoLeaves`, `unassignedLeaves` and `gates` |
 | `roadmap show ID` | - | the roadmap with every step's full text, progress, revision and `retired` flag, its versions, work items, notes, links, tracked chats, GitHub references, questions and decisions; without its history |
+| `roadmap deliverables ID` | `[--own] [--archived] [--limit 50] [--offset 0]` | `{items,total,counts}`: deliverables owned by this roadmap and its descendants unless `--own`, with owner path and checklist counts. Use `--archived` to list archived records |
+| `roadmap deliverable ID` | - | the full deliverable with its requirements, linked steps, inputs, outputs and reference availability |
 | `step show ID` | - | the step with its full text, `roadmapId`, `workClass`, `repositoryIds`, `waveIds`, notes and attachments; `ancestors`, the steps above it from the top down, and `siblings`, the others under its parent in outline order, each `{id,title,status}` (siblings with `position`); and `chats`, the roadmap's tracked chats on it, archived ones included, in the order they were put there |
 | `waves list` | `--roadmap ROADMAP_ID [--status planning\|active\|completed\|cancelled] [--archived]` | `{items,total}`: synchronized release/contract waves on a roadmap |
 | `waves show ID` | - | one wave with its `tierPipeline`, `repositories` (freeze state and `frozenRef`), `steps` and consumer `repins` |
@@ -295,6 +302,8 @@ worklog agent --as NAME search 'deploy steps' --limit 20 --archived
 worklog agent --as NAME roadmap outline ROADMAP_ID
 worklog agent --as NAME roadmap dispatch ROADMAP_ID --wave WAVE_ID --repo REPOSITORY_ID --include-done
 worklog agent --as NAME roadmap show ROADMAP_ID
+worklog agent --as NAME roadmap deliverables ROADMAP_ID --limit 50
+worklog agent --as NAME roadmap deliverable DELIVERABLE_ID
 worklog agent --as NAME step show STEP_ID
 worklog agent --as NAME waves list --roadmap ROADMAP_ID --status active
 worklog agent --as NAME waves show WAVE_ID
@@ -817,6 +826,11 @@ A proposal is a JSON file with a title (up to 1,000 bytes), a rationale for the 
 | `step.create` | `roadmapId`, `revision`, `title` | `id`, `parentId`, `description`, `outcome`, `position`, `repositoryIds`, `workClass` |
 | `step.split` | `id`, `revision`, `children` | `clearParentRepositories`, `inheritWaves`, `rehomeToChildIndex` |
 | `step.move` | `id`, `revision` | `parentId`, `position` |
+| `deliverable.create` | `roadmapId`, `title` | `id`, `description`, `stepIds`, `requirements`, `inputs`, `outputs` |
+| `deliverable.update` | `id`, `revision` | `title`, `description`, `stepIds`, `requirements`, `inputs`, `outputs` |
+| `deliverable.submit` | `id`, `revision` | - |
+| `deliverable.accept` | `id`, `revision` | `note` |
+| `deliverable.reopen` | `id`, `revision`, `reason` | - |
 | `wave.create` | `roadmapId`, `name` | `id`, `summary`, `stepIds`, `repositories`, `openDiscussion` |
 | `wave.update` | `id`, `revision` | `name`, `summary`, `position`, `repositories` |
 | `wave.steps` | `id`, `revision` | `mode`, `stepIds` |
@@ -906,6 +920,10 @@ Any other field is refused. On a create, `id` is not an ID but a name for the ne
   - A name on a `repository.create` for a remote already registered stands for that repository.
   - The proposal keeps its names. The person sees in Review which change creates each named record.
 - **Tickets.** File, change, close and comment on tickets directly (section 5.5). Propose `ticket.create` or `ticket.update` when the ticket belongs with what the same proposal creates, such as a ticket on a new work item or repository. A proposed ticket or change is written as your identity, as one you file yourself is. `id` on `ticket.update` is the ticket's key, number or ID, and `itemId: null` unlinks its work item.
+- **Deliverables.** `deliverable.create` assigns the deliverable to `roadmapId`. Its `stepIds` must name steps in that roadmap's active subtree. These links record contributing work. Steps and dependencies use their own progress rules. A parent roadmap's tree listing includes deliverables owned by its descendants and identifies each owner. A requirement is `{id?,text,checked?,verificationNote?,evidence?}`; before submit or accept, every requirement must be checked and have either an evidence reference or a nonblank verification note. Inputs, outputs and requirement evidence use references `{kind:'url',url,label?}` or `{kind:'repository'|'resource'|'attachment',id,label?,refresh?}`. A proposal may also use `{kind:'proposal_attachment',id,label?}` for evidence uploaded to that same draft. Worklog copies the file to the owner roadmap when the proposal applies and links that copy. A reference reports `availability` as `available`, `changed` or `unavailable`. Use `refresh:true` only when you intend to capture the source's current revision or checksum.
+  - Within one deliverable create/update operation, repeated use of the same proposal upload across requirements, inputs and outputs makes one copy. Each unique upload copied by each create/update operation counts as one additional application operation toward the proposal's 500-operation limit. Repeated use in another operation counts again.
+  - The states are `planned`, `ready_for_review` and `accepted`. `deliverable.submit` and `deliverable.accept` each require the complete checklist with proof or verification. Acceptance is independent of roadmap, step and dispatch status. `deliverable.reopen` from `ready_for_review` returns to `planned` and keeps checks. Reopening an accepted deliverable returns it to `planned`, clears its checks and keeps the proof references. Reopen before changing an accepted deliverable.
+  - A proposal can name a new deliverable with `id:'@name'`, then refer to that name in a later operation in the same proposal. Each operation uses the revision left by the preceding operation. A new deliverable starts at revision 1. Submit and accept each advance it once. Acceptance history records the reviewed revision. The current record advances by one when acceptance applies. Acceptance can be proposed; the proposal follows the same approval setting as any other proposal.
 - **Resources.** `resource.*` creates, edits, archives and recovers the person's reference pages. Every agent reads them as the person's guidance, so say in the rationale why a page should change. The page's history keeps every earlier version and who changed it.
 - **Files.** You attach a file to the person's records with a copy of evidence uploaded to the same proposal:
   1. Draft the proposal; its operations may be empty for now.
@@ -946,6 +964,7 @@ Uploading evidence leaves the proposal's revision alone. Before the update, `pro
   - `submit` applies the proposal at once and returns it approved, with `autoApproved: true`.
   - If any operation fails, the submit is refused with a message that starts `Not submitted:`. Nothing applies, and the proposal stays your draft to fix and submit again.
   - Proposals that were already submitted still wait for the person.
+  - A `deliverable.accept` in a proposal is an explicit acceptance operation and follows the same rule: it waits for approval when required, and is applied on submit when approval is off.
 - **Notices.** When the person returns your proposal to draft, or a plan change leaves a submitted proposal's target revision stale, Worklog tells you in Discussions (section 5.6). Reload the plan, update the draft and submit it again. The notice's title is your proposal's, cut to fit, and it is tagged with at most 30 of the records your proposal names: roadmaps first, then work items, then steps. A notice never stops the person's change: one Worklog cannot post is logged and not tried again, so also check your submitted proposals (`proposals --status submitted`) when the plan has moved.
 
 ## 7. Idempotency, revisions and retries
@@ -1093,7 +1112,7 @@ The following codes reach only the person's browser or a failed startup: `host` 
 | A JSON request | 8,000,000 bytes |
 | An evidence file or attachment | 25,000,000 bytes |
 | A note or scratchpad, a proposal's rationale, a discussion message | 1,000,000 bytes |
-| A proposal | 500 operations; 5,000,000 bytes of operations; a title of 1,000 bytes |
+| A proposal | 500 application operations, including each unique proposal-upload copy per deliverable create/update; 5,000,000 bytes of JSON operations; a title of 1,000 bytes |
 | Your proposals, under any of your credentials | 50 drafts; 100 awaiting review while approval is on; 500,000,000 bytes of evidence on those never approved |
 | A proposal's evidence | 20 files; 100,000,000 bytes in all |
 | A proposal's revisions | 200 |
@@ -1180,6 +1199,8 @@ Point the person to the page that matters:
 | backlog | `view=backlog`, `isBacklog` | "Unscheduled backlog" |
 | `tickets list --status active` | `status=active` | "Open, doing or blocked" |
 | resource | `/resources` | a page under "Pages" on Resources |
+| deliverable | `/deliverables/{id}` | a roadmap's "Deliverables" view, with requirements, delivery steps, inputs, outputs and history |
+| deliverable requirement | a numbered checklist row with a completion checkbox, `verificationNote` and `evidence` | the row's number and checkbox |
 | step progress | `/steps/{id}/progress` | the progress control beside each step |
 | `roadmap dispatch` | `/roadmaps/{id}/dispatch` | "Execution" on a roadmap, with "Repository lanes" |
 | `waves` / `waves repin` | `/waves/{id}`, `/waves/{id}/repins` | synchronized waves and "Consumer re-pins" on "Execution" |

@@ -1626,6 +1626,178 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/roadmaps/{identity}/deliverables": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Roadmap Deliverables */
+        get: operations["roadmap_deliverables_api_v1_roadmaps__identity__deliverables_get"];
+        put?: never;
+        /** Deliverable Create */
+        post: operations["deliverable_create_api_v1_roadmaps__identity__deliverables_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/roadmaps/{identity}/deliverable-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Deliverable Options */
+        get: operations["deliverable_options_api_v1_roadmaps__identity__deliverable_options_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/steps/{identity}/deliverables": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Step Deliverables */
+        get: operations["step_deliverables_api_v1_steps__identity__deliverables_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deliverables/{identity}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Deliverable Detail */
+        get: operations["deliverable_detail_api_v1_deliverables__identity__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Deliverable Update */
+        patch: operations["deliverable_update_api_v1_deliverables__identity__patch"];
+        trace?: never;
+    };
+    "/api/v1/deliverables/{identity}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Deliverable History */
+        get: operations["deliverable_history_api_v1_deliverables__identity__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deliverables/{identity}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deliverable Submit */
+        post: operations["deliverable_submit_api_v1_deliverables__identity__submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deliverables/{identity}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deliverable Accept */
+        post: operations["deliverable_accept_api_v1_deliverables__identity__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deliverables/{identity}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deliverable Reopen */
+        post: operations["deliverable_reopen_api_v1_deliverables__identity__reopen_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deliverables/{identity}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deliverable Archive */
+        post: operations["deliverable_archive_api_v1_deliverables__identity__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deliverables/{identity}/recover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deliverable Recover */
+        post: operations["deliverable_recover_api_v1_deliverables__identity__recover_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/roadmaps/{identity}/dispatch": {
         parameters: {
             query?: never;
@@ -5204,6 +5376,364 @@ export interface components {
             /** Decideddate */
             decidedDate?: string | null;
         };
+        /** DeliverableAccept */
+        DeliverableAccept: {
+            /** Revision */
+            revision: number;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+        };
+        /** DeliverableAcceptance */
+        DeliverableAcceptance: {
+            /** Revision */
+            revision: number;
+            /** Acceptedat */
+            acceptedAt: string;
+            actor: components["schemas"]["DeliverableActor"];
+            /** Note */
+            note: string;
+            /** Proposalid */
+            proposalId: string | null;
+            snapshot: components["schemas"]["DeliverableSnapshot"];
+        };
+        /** DeliverableActor */
+        DeliverableActor: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "human" | "agent";
+        };
+        /** DeliverableBacklinks */
+        DeliverableBacklinks: {
+            /** Items */
+            items: components["schemas"]["DeliverableSummary"][];
+            /** Total */
+            total: number;
+        };
+        /** DeliverableCounts */
+        DeliverableCounts: {
+            /** Planned */
+            planned: number;
+            /** Readyforreview */
+            readyForReview: number;
+            /** Accepted */
+            accepted: number;
+        };
+        /** DeliverableCreate */
+        DeliverableCreate: {
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Stepids */
+            stepIds?: string[];
+            /** Requirements */
+            requirements?: components["schemas"]["DeliverableRequirementInput"][];
+            /** Inputs */
+            inputs?: (components["schemas"]["DeliverableUrl"] | components["schemas"]["DeliverableRecordReference"] | components["schemas"]["DeliverableProposalAttachment"])[];
+            /** Outputs */
+            outputs?: (components["schemas"]["DeliverableUrl"] | components["schemas"]["DeliverableRecordReference"] | components["schemas"]["DeliverableProposalAttachment"])[];
+            /** Title */
+            title: string;
+        };
+        /** DeliverableDetail */
+        DeliverableDetail: {
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Steps */
+            steps: components["schemas"]["DeliverableStep"][];
+            /** Requirements */
+            requirements: components["schemas"]["DeliverableRequirement"][];
+            /** Inputs */
+            inputs: components["schemas"]["DeliverableReference"][];
+            /** Outputs */
+            outputs: components["schemas"]["DeliverableReference"][];
+            /** Id */
+            id: string;
+            /** Roadmapid */
+            roadmapId: string;
+            /** Roadmaptitle */
+            roadmapTitle: string;
+            /** Roadmappath */
+            roadmapPath: components["schemas"]["DeliverableRoadmap"][];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "planned" | "ready_for_review" | "accepted";
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Requirementcount */
+            requirementCount: number;
+            /** Checkedcount */
+            checkedCount: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Stepids */
+            stepIds: string[];
+        };
+        /** DeliverableEvent */
+        DeliverableEvent: {
+            /** Kind */
+            kind: string;
+            /** Actorid */
+            actorId: string;
+            /** Actorlabel */
+            actorLabel: string;
+            /** Actorkind */
+            actorKind: string;
+            /** Createdat */
+            createdAt: string;
+            /** Reason */
+            reason: string;
+        };
+        /** DeliverableHistory */
+        DeliverableHistory: {
+            /** Items */
+            items: components["schemas"]["DeliverableAcceptance"][];
+            /** Total */
+            total: number;
+            /** Events */
+            events: components["schemas"]["DeliverableEvent"][];
+        };
+        /** DeliverableList */
+        DeliverableList: {
+            /** Items */
+            items: components["schemas"]["DeliverableSummary"][];
+            /** Total */
+            total: number;
+            counts: components["schemas"]["DeliverableCounts"];
+        };
+        /** DeliverableOption */
+        DeliverableOption: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Detail */
+            detail: string;
+        };
+        /** DeliverableOptions */
+        DeliverableOptions: {
+            /** Items */
+            items: components["schemas"]["DeliverableOption"][];
+            /** Total */
+            total: number;
+        };
+        /** DeliverableProposalAttachment */
+        DeliverableProposalAttachment: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "proposal_attachment";
+            /** Id */
+            id: string;
+            /**
+             * Label
+             * @default
+             */
+            label: string;
+        };
+        /** DeliverableRecordReference */
+        DeliverableRecordReference: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "attachment" | "repository" | "resource";
+            /** Id */
+            id: string;
+            /**
+             * Label
+             * @default
+             */
+            label: string;
+            /**
+             * Refresh
+             * @default false
+             */
+            refresh: boolean;
+        };
+        /** DeliverableReference */
+        DeliverableReference: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "url" | "repository" | "resource" | "attachment";
+            /** Id */
+            id?: string | null;
+            /** Url */
+            url?: string | null;
+            /** Label */
+            label: string;
+            /** Href */
+            href: string | null;
+            /**
+             * Availability
+             * @enum {string}
+             */
+            availability: "available" | "changed" | "unavailable";
+            /** Sourcerevision */
+            sourceRevision?: number | null;
+            /** Sha256 */
+            sha256?: string | null;
+        };
+        /** DeliverableReopen */
+        DeliverableReopen: {
+            /** Revision */
+            revision: number;
+            /** Reason */
+            reason: string;
+        };
+        /** DeliverableRequirement */
+        DeliverableRequirement: {
+            /** Id */
+            id: string;
+            /** Text */
+            text: string;
+            /** Checked */
+            checked: boolean;
+            /** Verificationnote */
+            verificationNote: string;
+            /** Evidence */
+            evidence: components["schemas"]["DeliverableReference"][];
+        };
+        /** DeliverableRequirementInput */
+        DeliverableRequirementInput: {
+            /** Id */
+            id?: string | null;
+            /** Text */
+            text: string;
+            /**
+             * Checked
+             * @default false
+             */
+            checked: boolean;
+            /**
+             * Verificationnote
+             * @default
+             */
+            verificationNote: string;
+            /** Evidence */
+            evidence?: (components["schemas"]["DeliverableUrl"] | components["schemas"]["DeliverableRecordReference"] | components["schemas"]["DeliverableProposalAttachment"])[];
+        };
+        /** DeliverableRoadmap */
+        DeliverableRoadmap: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+        };
+        /** DeliverableSnapshot */
+        DeliverableSnapshot: {
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Steps */
+            steps: components["schemas"]["DeliverableStep"][];
+            /** Requirements */
+            requirements: components["schemas"]["DeliverableRequirement"][];
+            /** Inputs */
+            inputs: components["schemas"]["DeliverableReference"][];
+            /** Outputs */
+            outputs: components["schemas"]["DeliverableReference"][];
+        };
+        /** DeliverableStep */
+        DeliverableStep: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Roadmapid */
+            roadmapId: string;
+            /** Roadmaptitle */
+            roadmapTitle: string;
+            /** Available */
+            available: boolean;
+        };
+        /** DeliverableSummary */
+        DeliverableSummary: {
+            /** Id */
+            id: string;
+            /** Roadmapid */
+            roadmapId: string;
+            /** Roadmaptitle */
+            roadmapTitle: string;
+            /** Roadmappath */
+            roadmapPath: components["schemas"]["DeliverableRoadmap"][];
+            /** Title */
+            title: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "planned" | "ready_for_review" | "accepted";
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Requirementcount */
+            requirementCount: number;
+            /** Checkedcount */
+            checkedCount: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+        };
+        /** DeliverableUpdate */
+        DeliverableUpdate: {
+            /** Revision */
+            revision: number;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Stepids */
+            stepIds?: string[];
+            /** Requirements */
+            requirements?: components["schemas"]["DeliverableRequirementInput"][];
+            /** Inputs */
+            inputs?: (components["schemas"]["DeliverableUrl"] | components["schemas"]["DeliverableRecordReference"] | components["schemas"]["DeliverableProposalAttachment"])[];
+            /** Outputs */
+            outputs?: (components["schemas"]["DeliverableUrl"] | components["schemas"]["DeliverableRecordReference"] | components["schemas"]["DeliverableProposalAttachment"])[];
+            /** Title */
+            title?: string | null;
+        };
+        /** DeliverableUrl */
+        DeliverableUrl: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "url";
+            /** Url */
+            url: string;
+            /**
+             * Label
+             * @default
+             */
+            label: string;
+        };
         /** Dependencies */
         Dependencies: {
             /** Prerequisites */
@@ -7126,7 +7656,7 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "repository.create" | "repository.update" | "repository.archive" | "repository.recover" | "dependency.create" | "dependency.confirm" | "dependency.archive" | "item.create" | "item.update" | "item.archive" | "item.recover" | "entry.upsert" | "note.create" | "note.update" | "roadmap.create" | "roadmap.revise" | "roadmap.move" | "progress.set" | "step.update" | "step.create" | "step.split" | "step.move" | "wave.create" | "wave.update" | "wave.steps" | "person.create" | "person.update" | "person.archive" | "person.recover" | "person.link" | "person.unlink" | "link.create" | "link.update" | "link.archive" | "link.recover" | "attachment.create" | "chat.create" | "chat.update" | "chat.archive" | "chat.recover" | "github.create" | "github.update" | "github.archive" | "github.recover" | "question.create" | "question.update" | "question.archive" | "question.recover" | "decision.create" | "decision.update" | "decision.archive" | "decision.recover" | "resource.create" | "resource.update" | "resource.archive" | "resource.recover" | "ticket.create" | "ticket.update";
+            action: "repository.create" | "repository.update" | "repository.archive" | "repository.recover" | "dependency.create" | "dependency.confirm" | "dependency.archive" | "item.create" | "item.update" | "item.archive" | "item.recover" | "entry.upsert" | "note.create" | "note.update" | "roadmap.create" | "roadmap.revise" | "roadmap.move" | "progress.set" | "step.update" | "step.create" | "step.split" | "step.move" | "deliverable.create" | "deliverable.update" | "deliverable.submit" | "deliverable.accept" | "deliverable.reopen" | "wave.create" | "wave.update" | "wave.steps" | "person.create" | "person.update" | "person.archive" | "person.recover" | "person.link" | "person.unlink" | "link.create" | "link.update" | "link.archive" | "link.recover" | "attachment.create" | "chat.create" | "chat.update" | "chat.archive" | "chat.recover" | "github.create" | "github.update" | "github.archive" | "github.recover" | "question.create" | "question.update" | "question.archive" | "question.recover" | "decision.create" | "decision.update" | "decision.archive" | "decision.recover" | "resource.create" | "resource.update" | "resource.archive" | "resource.recover" | "ticket.create" | "ticket.update";
             /** Payload */
             payload: {
                 [key: string]: unknown;
@@ -15205,6 +15735,422 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PersonUntied"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    roadmap_deliverables_api_v1_roadmaps__identity__deliverables_get: {
+        parameters: {
+            query?: {
+                scope?: "tree" | "own";
+                archived?: boolean;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverableList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deliverable_create_api_v1_roadmaps__identity__deliverables_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeliverableCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverableDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deliverable_options_api_v1_roadmaps__identity__deliverable_options_get: {
+        parameters: {
+            query: {
+                kind: "step" | "attachment" | "resource" | "repository";
+                q?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverableOptions"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    step_deliverables_api_v1_steps__identity__deliverables_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverableBacklinks"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deliverable_detail_api_v1_deliverables__identity__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverableDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deliverable_update_api_v1_deliverables__identity__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeliverableUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverableDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deliverable_history_api_v1_deliverables__identity__history_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverableHistory"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deliverable_submit_api_v1_deliverables__identity__submit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Expected"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverableDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deliverable_accept_api_v1_deliverables__identity__accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeliverableAccept"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverableDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deliverable_reopen_api_v1_deliverables__identity__reopen_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeliverableReopen"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverableDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deliverable_archive_api_v1_deliverables__identity__archive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Expected"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverableDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deliverable_recover_api_v1_deliverables__identity__recover_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Expected"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverableDetail"];
                 };
             };
             /** @description Validation Error */

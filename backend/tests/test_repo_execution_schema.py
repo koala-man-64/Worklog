@@ -62,10 +62,35 @@ V35_TABLES = (
 V36_TABLES = ("push_enrollments", "push_subscriptions", "push_deliveries")
 V37_TABLES = ("dependencies",)
 V38_COLUMNS = ("caller_worktree_path", "worktree_claim_key")
+V39_TABLES = ("deliverables", "deliverable_steps", "deliverable_acceptances")
+
+
+def to_v38(path):
+    """Drop the v39 deliverable tables only when empty to recover the v38 fixture shape."""
+    with closing(sqlite3.connect(path)) as conn:
+        version = conn.execute("PRAGMA user_version").fetchone()[0]
+        tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        if version == 38 and not set(V39_TABLES) & tables:
+            return
+        if version != 39 or not set(V39_TABLES) <= tables:
+            raise ValueError(f"Expected a v38 or v39 schema shape, got version {version}")
+        populated = [table for table in V39_TABLES if conn.execute(f"SELECT 1 FROM {table} LIMIT 1").fetchone()]
+        if populated:
+            raise ValueError("The v39 deliverable tables must be empty for the v38 fixture: " + ", ".join(populated))
+        conn.execute("BEGIN")
+        conn.execute("DROP TABLE deliverable_acceptances")
+        conn.execute("DROP TABLE deliverable_steps")
+        conn.execute("DROP TABLE deliverables")
+        conn.execute("PRAGMA user_version=38")
+        conn.commit()
 
 
 def to_v37(path):
-    """Project a v38 fixture back to v37 only while its new lease fields are empty."""
+    """Project a v39/v38 fixture back to v37 only while its additive records and lease fields are empty."""
+    with closing(sqlite3.connect(path)) as conn:
+        version = conn.execute("PRAGMA user_version").fetchone()[0]
+    if version == 39:
+        to_v38(path)
     with closing(sqlite3.connect(path)) as conn:
         version = conn.execute("PRAGMA user_version").fetchone()[0]
         columns = {row[1] for row in conn.execute("PRAGMA table_info(repository_leases)")}
@@ -85,7 +110,7 @@ def to_v37(path):
 
 
 def to_v36(path):
-    """Project a v38 fixture back through v37 while the added tables and fields are empty."""
+    """Project a v39/v38 fixture back through v37 while the added tables and fields are empty."""
     with closing(sqlite3.connect(path)) as conn:
         version = conn.execute("PRAGMA user_version").fetchone()[0]
         if version == 36:
@@ -105,7 +130,7 @@ def to_v36(path):
 
 
 def to_v35(path):
-    """Take a current v38 database back through the documented v38, v37 and v36 way-backs."""
+    """Take a current v39 database back through the v38, v37 and v36 way-backs."""
     to_v36(path)
     with closing(sqlite3.connect(path)) as conn:
         version = conn.execute("PRAGMA user_version").fetchone()[0]
@@ -125,22 +150,22 @@ def test_v36_way_back_sql_matches_the_upgrade_guide():
 
 
 def to_v34(path):
-    """Take a current v38 database back to v34 through its historical way-backs."""
+    """Take a current v39 database back to v34 through its historical way-backs."""
     to_v35(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK_V34)
 
 
 def before_v38(rows):
-    """Rows present in v37, excluding the two empty v38 lease fields."""
-    kept = dict(rows)
+    """Rows present in v37, excluding the v39 tables and empty v38 lease fields."""
+    kept = {table: values for table, values in rows.items() if table not in V39_TABLES}
     if "repository_leases" in kept:
         kept["repository_leases"] = [row[:-2] for row in kept["repository_leases"]]
     return kept
 
 
 def before_v37(rows):
-    """Rows present in v36, excluding the empty v37 dependency table and v38 lease fields."""
+    """Rows present in v36, excluding v37 dependencies, v38 lease fields, and v39 tables."""
     return {table: values for table, values in before_v38(rows).items() if table not in V37_TABLES}
 
 
@@ -232,7 +257,8 @@ def test_v38_preserves_pathless_managed_and_historical_lease_rows(tmp_path):
     Database(db_path).initialize()
 
     version, signature, after = contents(db_path)
-    assert (version, signature) == (38, sealed.current())
+    assert (version, signature) == (39, sealed.current())
+    assert all(after[table] == [] for table in V39_TABLES)
     assert before_v38(after) == before
     assert all(row[-2:] == (None, None) for row in after["repository_leases"])
 

@@ -4,7 +4,7 @@ roadmap's outline without its text."""
 import io
 import json
 from urllib.error import HTTPError
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from fastapi.testclient import TestClient
@@ -35,6 +35,7 @@ def transport(monkeypatch):
 @pytest.mark.parametrize("arguments,route", [
     (["roadmap", "show", ID], f"/roadmaps/{ID}"),
     (["roadmap", "outline", ID], f"/roadmaps/{ID}/outline"),
+    (["roadmap", "deliverable", ID], f"/deliverables/{ID}"),
     (["step", "show", ID], f"/steps/{ID}"),
 ])
 def test_show_reads_one_record_by_id(transport, arguments, route):
@@ -44,7 +45,17 @@ def test_show_reads_one_record_by_id(transport, arguments, route):
     assert request.get_header("Idempotency-key") is None
 
 
+def test_deliverables_list_passes_scope_and_paging(transport):
+    assert cli.main(["agent", "roadmap", "deliverables", ID, "--own", "--archived",
+                     "--limit", "7", "--offset", "3"]) == 0
+    sent = urlsplit(transport[-1].full_url)
+    assert sent.path == f"/api/v1/roadmaps/{ID}/deliverables"
+    assert parse_qs(sent.query) == {"scope": ["own"], "archived": ["true"], "limit": ["7"], "offset": ["3"]}
+
+
 @pytest.mark.parametrize("method,path", [
+    ("POST", f"/roadmaps/{ID}/deliverables"), ("PATCH", f"/deliverables/{ID}"),
+    ("POST", f"/deliverables/{ID}/accept"), ("GET", "/deliverables/not-a-deliverable"),
     ("POST", "/roadmaps"), ("POST", f"/roadmaps/{ID}/revisions"), ("POST", f"/roadmaps/{ID}/restore"),
     ("POST", f"/roadmaps/{ID}/move"), ("POST", f"/roadmaps/{ID}/archive"), ("PATCH", f"/roadmaps/{ID}"),
     ("PATCH", f"/steps/{ID}/progress"), ("PATCH", f"/steps/{ID}"),

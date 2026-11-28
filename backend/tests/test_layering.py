@@ -35,11 +35,11 @@ ORDER = [
     "migrations", "proposals", "recovery", "compaction", "doctor",
     # Work: the shapes the domains share, supporting records, work items, people, and the router;
     # then what reached each repository's default branch, counted from its checkout.
-    "records", "support", "items", "people", "services", "session_launches", "live", "git_activity",
+    "records", "support", "deliverables", "items", "people", "services", "session_launches", "live", "git_activity",
     # HTTP: the routes of each domain, the request guard in front of them all, the usage counts kept
     # inside it, and the app.
     "coordination_api", "lease_api", "wave_api", "dependency_api", "discussion_api", "registry_api",
-    "resource_api", "ticket_api", "session_api", "live_api", "push_api", "guard", "usage", "app",
+    "resource_api", "ticket_api", "deliverable_api", "session_api", "live_api", "push_api", "guard", "usage", "app",
     # The command line.
     "push_notice", "push_providers", "push_channel", "push_cli", "local_sessions", "cli",
 ]

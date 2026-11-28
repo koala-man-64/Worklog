@@ -306,6 +306,62 @@ class RoadmapRevision(RoadmapContent):
     note: str = ""
 
 
+class DeliverableUrl(Command):
+    kind: Literal["url"]
+    url: str = Field(min_length=1, max_length=2048)
+    label: str = Field(default="", max_length=1000)
+
+
+class DeliverableRecordReference(Command):
+    kind: Literal["repository", "resource", "attachment"]
+    id: str = Field(min_length=1, max_length=200)
+    label: str = Field(default="", max_length=1000)
+    refresh: StrictBool = False
+
+
+class DeliverableProposalAttachment(Command):
+    kind: Literal["proposal_attachment"]
+    id: str = Field(min_length=1, max_length=200)
+    label: str = Field(default="", max_length=1000)
+
+
+DeliverableReferenceInput = Annotated[
+    DeliverableUrl | DeliverableRecordReference | DeliverableProposalAttachment, Field(discriminator="kind")
+]
+
+
+class DeliverableRequirementInput(Command):
+    id: str | None = Field(default=None, min_length=1, max_length=200)
+    text: str = Field(min_length=1, max_length=4000)
+    checked: StrictBool = False
+    verificationNote: str = Field(default="", max_length=8000)
+    evidence: list[DeliverableReferenceInput] = Field(default_factory=list, max_length=50)
+
+
+class DeliverableContent(Command):
+    description: str = Field(default="", max_length=100_000)
+    stepIds: list[Annotated[str, Field(min_length=1, max_length=200)]] = Field(default_factory=list, max_length=500)
+    requirements: list[DeliverableRequirementInput] = Field(default_factory=list, max_length=200)
+    inputs: list[DeliverableReferenceInput] = Field(default_factory=list, max_length=100)
+    outputs: list[DeliverableReferenceInput] = Field(default_factory=list, max_length=100)
+
+
+class DeliverableCreate(DeliverableContent):
+    title: str = Field(min_length=1, max_length=1000)
+
+
+class DeliverableUpdate(DeliverableContent, Expected):
+    title: str | None = Field(default=None, min_length=1, max_length=1000)
+
+
+class DeliverableAccept(Expected):
+    note: str = Field(default="", max_length=8000)
+
+
+class DeliverableReopen(Expected):
+    reason: str = Field(min_length=1, max_length=8000)
+
+
 class RoadmapMove(Expected):
     parentId: str | None
 
@@ -439,6 +495,7 @@ class Operation(Command):
                     "note.create", "note.update",
                     "roadmap.create", "roadmap.revise", "roadmap.move", "progress.set", "step.update",
                     "step.create", "step.split", "step.move",
+                    "deliverable.create", "deliverable.update", "deliverable.submit", "deliverable.accept", "deliverable.reopen",
                     "wave.create", "wave.update", "wave.steps",
                     "person.create", "person.update", "person.archive", "person.recover",
                     "person.link", "person.unlink",

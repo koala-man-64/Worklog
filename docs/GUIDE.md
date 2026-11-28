@@ -231,6 +231,16 @@ Shared links between non-agent records and a step, work item or ticket prerequis
 
 The editor opens beside the outline, and keeps your unsaved structure as a browser draft. If the roadmap changed in the meantime, choose "Rebase onto current" to keep your edits on the newest version: a title, outcome, description or parent you didn't change takes the newest one, so a step edited elsewhere keeps its new text, and a step retired elsewhere stays retired unless you changed it. Or choose "Discard draft". A save changes only the steps you changed: adding or retiring a step leaves the others as they were. Retired steps keep their history; "Show retired steps" shows them in the outline, where they were. Once your phases are in place, run day-to-day delivery across repositories and release waves as described in [Execute a roadmap by repository stream and wave](#execute-a-roadmap-by-repository-stream-and-wave).
 
+### Define and accept a deliverable
+
+1. Open the roadmap's **Deliverables** view, enter "New deliverable title" and press "Add deliverable". Open "Edit deliverable" to add a description and plan the handoff.
+2. Use "Add requirement" for each condition the handoff must satisfy. Under **Delivery steps**, use "Find steps to link" and press "Link step" beside contributing steps. The picker includes the owning roadmap and its active sub-roadmaps. The parent's Deliverables view groups each result under its owning roadmap.
+3. Add **Inputs**, **Outputs**, and requirement evidence. They can reference URLs, repositories, Resource pages, and saved attachments. Upload a new file with "Attach a file" when adding an attachment reference. The copy appears in Material on the owning roadmap. Use the refresh control to capture a changed source version.
+4. Check each requirement and give it an available evidence link or a verification note. Use "Save deliverable", then "Submit for review". Press "Accept deliverable" once you've reviewed the proof. Acceptance records the reviewed revision in **History**. Step progress and dispatch use their own rules.
+5. Use "Return to planned" to edit a deliverable that is ready for review. It keeps its checks. Use "Reopen deliverable" on an accepted record. Reopening clears the checks for reverification and preserves the evidence and earlier acceptance. Give a reason for either action.
+
+Agents can propose the same plan and acceptance changes. The "Require my approval for agent proposals" setting determines when those changes apply. To accept a deliverable, the proposal must include an explicit acceptance operation.
+
 ### Execute a roadmap by repository stream and wave
 
 Keep phases, milestones and end-to-end readiness gates on the roadmap's "Outline" for planning, and run execution from its "Execution" view, where leaf steps group into "Repository lanes" (one stream per repository) and synchronize across dependency tiers in waves.
@@ -463,7 +473,7 @@ Plans broken into steps, with every saved version kept.
     - "Edit structure", "Live panel", and "Archive" or "Recover".
     - The progress bar.
     - "Nested under", the sub-roadmaps and "Add sub-roadmap".
-    - Its views, each at its own address: "Status", "Outline", "Execution", "Questions and decisions" with how many are open, "Chats", "Discussions", "Live", "Material" and "History".
+    - Its views, each at its own address: "Status", "Outline", "Deliverables", "Execution", "Questions and decisions" with how many are open, "Chats", "Discussions", "Live", "Material" and "History".
   - **"Status"**, which the roadmap opens on:
     - "Phases": each step at the top of the outline, with how many of the steps under it are done, in progress, blocked and open, and a bar filled in those colours.
     - "Now": the steps in progress, Active ones among them, each with its phase and the agents working on it.
@@ -486,6 +496,11 @@ Plans broken into steps, with every saved version kept.
     - Groups the roadmap's leaf steps into "Repository lanes" with each repository's dependency tier, WIP cap, active writers, competing Doing WIP outside the active wave, queued order and blocked work, while preserving the phase hierarchy on "Outline".
     - "New wave" creates a synchronized release or contract wave across dependency tiers; you control wave status, repository freeze states and "Consumer re-pins" ("Verify" or "Waive").
     - "Multi-repo leaves to split" flags non-gate leaves spanning multiple repositories with "Split by repo" and "Mark as gate"; "Unassigned leaves" lets you link repositories or accept suggestions.
+  - **"Deliverables":**
+    - Lists this roadmap's deliverables and those owned by its sub-roadmaps, with each deliverable's owner path, status and checklist progress. Open an item from its owning roadmap's group.
+    - **Requirements** holds the checkable criteria. **Delivery steps** links the steps that contribute to the deliverable. **Inputs** and **Outputs** hold references to URLs, repositories, resources and attachments. Refresh changed references to capture the current source. Replace or restore unavailable sources to use them as current proof.
+    - The detail offers "Edit deliverable" and "Save deliverable", "Submit for review", "Accept deliverable", "Return to planned" for a deliverable ready for review, "Reopen deliverable" for an accepted one, "Archive deliverable" or "Recover deliverable", and **History**. Returning to planned keeps the checks. Reopening an accepted deliverable clears the checks and keeps their proof references.
+    - Requirements are checked separately from step progress and dispatch. Each checked requirement needs a proof link or recorded verification before the deliverable can be submitted or accepted.
   - **"Questions and decisions"**: "Questions" and "Decisions", with archived ones under "Archived supporting records".
   - **"Chats"**: **Chats** for this roadmap alone.
     - "Agent chats" lists the chats tracked on the roadmap, on its work items and on its sub-roadmaps, working ones first. Each shows its steps, and a chat tracked on a work item or sub-roadmap names it.

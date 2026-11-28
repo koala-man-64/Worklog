@@ -14,10 +14,10 @@ import sqlite3
 
 from .common import now, setting, today, uid
 
-SCHEMA_VERSION = 38
+SCHEMA_VERSION = 39
 # Older versions that startup and offline restore upgrade in one transaction.
 UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-                                 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37})
+                                 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38})
 
 # v36's delivery tables start empty. Keep this DDL here, separate from schema.BASELINE, so a
 # future baseline change cannot rewrite the historical v36 upgrade.
@@ -47,6 +47,15 @@ WORKTREE_CLAIMS_SCHEMA = """
 ALTER TABLE repository_leases ADD COLUMN caller_worktree_path TEXT CHECK(caller_worktree_path IS NULL OR worktree_path='');
 ALTER TABLE repository_leases ADD COLUMN worktree_claim_key TEXT;
 CREATE UNIQUE INDEX repository_leases_active_claim_key ON repository_leases(worktree_claim_key) WHERE state IN('offered','active','expired_dirty') AND worktree_claim_key IS NOT NULL;
+"""
+
+# v39: roadmap deliverables, linked steps, and revision-scoped acceptance receipts.
+DELIVERABLES_SCHEMA = """
+CREATE TABLE deliverables(id TEXT PRIMARY KEY,roadmap_id TEXT NOT NULL REFERENCES roadmaps(id),title TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',definition TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'planned' CHECK(status IN('planned','ready_for_review','accepted')),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+CREATE INDEX deliverables_roadmap ON deliverables(roadmap_id,archived,status,id);
+CREATE TABLE deliverable_steps(deliverable_id TEXT NOT NULL REFERENCES deliverables(id),step_id TEXT NOT NULL REFERENCES steps(id),position INTEGER NOT NULL CHECK(position>=0),PRIMARY KEY(deliverable_id,step_id));
+CREATE INDEX deliverable_steps_step ON deliverable_steps(step_id,deliverable_id);
+CREATE TABLE deliverable_acceptances(deliverable_id TEXT NOT NULL REFERENCES deliverables(id),revision INTEGER NOT NULL CHECK(revision>=1),accepted_at TEXT NOT NULL,actor_id TEXT NOT NULL,actor_label TEXT NOT NULL,actor_kind TEXT NOT NULL CHECK(actor_kind IN('human','agent')),proposal_id TEXT REFERENCES proposals(id),note TEXT NOT NULL DEFAULT '',snapshot TEXT NOT NULL,PRIMARY KEY(deliverable_id,revision));
 """
 
 # v1 grew in place before versions were counted: _upgrade_v1 adds whichever of these a v1 database
@@ -1118,6 +1127,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
         execute_schema(conn, DEPENDENCIES_SCHEMA)
     if version < 38:
         execute_schema(conn, WORKTREE_CLAIMS_SCHEMA)
+    if version < 39:
+        execute_schema(conn, DELIVERABLES_SCHEMA)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

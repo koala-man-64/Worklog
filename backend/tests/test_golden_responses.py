@@ -288,6 +288,16 @@ class World:
             "revision": resolved["revision"], "note": "Release notes drafted",
         })
         self.write(a, "POST", f"/dependencies/{resolved['id']}/archive", {"revision": confirmed["revision"]})
+        deliverable = self.write(p, "POST", f"/roadmaps/{roadmap['id']}/deliverables", {
+            "title": "Buildable parser", "description": "The parser and its setup instructions",
+            "stepIds": [child], "outputs": [{"kind": "repository", "id": ids["repository"]}],
+            "requirements": [{"id": "clean-build", "text": "Build from a clean clone", "checked": True,
+                              "evidence": [{"kind": "url", "url": "https://example.com/builds/1"}]}],
+        })
+        ids["deliverable"] = deliverable["id"]
+        path = f"/deliverables/{deliverable['id']}"
+        ready = self.write(p, "POST", path + "/submit", {"revision": deliverable["revision"]})
+        self.write(p, "POST", path + "/accept", {"revision": ready["revision"], "note": "Build reviewed"})
 
 
 # A read's other forms, each its own golden file: the context's summary is its default (audit 3.5).
@@ -299,10 +309,11 @@ def concrete(template: str, ids: dict[str, str], today: str) -> str:
     owner = {"/attachments": f"?ownerType=item&ownerId={ids['item']}", "/history": f"?entityId={ids['item']}",
              "/coordination-overlaps": f"?itemId={ids['item']}", "/owners": f"?ref={ids['ticketRef']}",
              "/dependencies": f"?type=step&id={ids['step']}",
+             "/roadmaps/{identity}/deliverable-options": "?kind=step",
              "/search": "?q=parser", "/repositories/resolve": "?url=https://github.com/example/worklog"}
     by_prefix = [("/work-items/", "item"), ("/notes/", "note"), ("/links/", "link"),
                  ("/references/", "reference"), ("/attachments/", "attachment"), ("/roadmaps/", "roadmap"),
-                 ("/steps/", "step"), ("/questions/", "question"), ("/decisions/", "decision"),
+                 ("/deliverables/", "deliverable"), ("/steps/", "step"), ("/questions/", "question"), ("/decisions/", "decision"),
                  ("/github/", "github"), ("/chats/", "chat"), ("/people/", "person"), ("/resources/", "resource"),
                  ("/repositories/", "repository"), ("/waves/", "wave"),
                  ("/dependencies/roadmaps/", "roadmap"), ("/dependencies/", "dependency"),
