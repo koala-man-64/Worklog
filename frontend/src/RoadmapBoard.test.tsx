@@ -6,6 +6,7 @@ import { setDataContext } from "./api";
 import { RoadmapDetail } from "./Roadmaps";
 import type {
   Answer,
+  LiveSnapshot,
   Roadmap,
   RoadmapQuestion,
   RoadmapWorker,
@@ -58,6 +59,42 @@ const plan = [
   step(6, "Ship", null, "blocked"),
   step(8, "Release", 6, "blocked"),
 ];
+// Nothing moves on the roadmap: Live answers for it with every list empty.
+const quietLive: LiveSnapshot = {
+  generatedAt: MADE,
+  windowMinutes: 60,
+  roadmapId: ROADMAP,
+  roadmapTitle: "Compiler",
+  summary: {
+    activeAgents: 0,
+    workingChats: 0,
+    activeWorkItems: 0,
+    activeSteps: 0,
+    activeRepos: 0,
+    repoOverlaps: 0,
+    overCapRepos: 0,
+    pendingRequests: 0,
+    waitingOnAgents: 0,
+    waitingProposals: 0,
+    openQuestions: 0,
+    needsYou: 0,
+  },
+  roadmaps: [],
+  work: [],
+  agents: [],
+  untrackedSessions: [],
+  repositories: [],
+  workEdges: [],
+  repoEdges: [],
+  commEdges: [],
+  lanes: [],
+  pulses: [],
+};
+const liveReads = () =>
+  vi
+    .mocked(fetch)
+    .mock.calls.map(([input]) => String(input))
+    .filter((url) => url.includes("/live?"));
 let served: Roadmap;
 let board: Answer<"/api/v1/roadmaps/{identity}/board">;
 let workers: RoadmapWorker[];
@@ -84,6 +121,7 @@ beforeEach(() => {
         items: workers,
         roster: { items: [], total: 0 },
       });
+    if (url.includes("/live?")) return Response.json(quietLive);
     return Response.json({ items: [], total: 0 });
   });
 });
@@ -548,4 +586,81 @@ it("gives each title it may cut short in full on hover", async () => {
     "title",
     long,
   );
+});
+
+it("shows Live beside every view but the Live tab, and remembers that it was hidden", async () => {
+  const { rerender } = render(page());
+  const panel = await screen.findByRole("complementary", {
+    name: "Live activity",
+  });
+  const toggle = screen.getByRole("button", { name: "Live panel" });
+  expect(toggle).toHaveAttribute("aria-pressed", "true");
+  expect(toggle).toHaveAttribute("aria-controls", panel.id);
+  expect(
+    await within(panel).findByText(
+      "Nothing is moving on this roadmap in this window.",
+    ),
+  ).toBeInTheDocument();
+  expect(liveReads()).toContain(
+    `/api/v1/live?windowMinutes=60&includeIdle=false&roadmapId=${ROADMAP}`,
+  );
+  // A step's page keeps it, beside the outline and the step.
+  rerender(page(id(3)));
+  expect(
+    await screen.findByRole("region", { name: "Plan outline" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("complementary", { name: "Live activity" }),
+  ).toBeInTheDocument();
+  // The Live tab shows all of it: no panel, and nothing to open one with.
+  rerender(page("live"));
+  expect(
+    await screen.findByRole("group", { name: "Activity window" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("complementary", { name: "Live activity" }),
+  ).toBeNull();
+  expect(screen.queryByRole("button", { name: "Live panel" })).toBeNull();
+  rerender(page("questions"));
+  await userEvent.click(
+    within(
+      await screen.findByRole("complementary", { name: "Live activity" }),
+    ).getByRole("button", { name: "Hide Live panel" }),
+  );
+  expect(
+    screen.queryByRole("complementary", { name: "Live activity" }),
+  ).toBeNull();
+  expect(screen.getByRole("button", { name: "Live panel" })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+  expect(localStorage.getItem("roadmap-live-panel")).toBe("closed");
+  rerender(page("material"));
+  expect(
+    await screen.findByRole("region", { name: "Material" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("complementary", { name: "Live activity" }),
+  ).toBeNull();
+});
+
+it("reads no Live while the panel stays hidden, and opens it again from the header", async () => {
+  localStorage.setItem("roadmap-live-panel", "closed");
+  render(page());
+  expect(
+    await screen.findByRole("heading", { level: 1, name: "Compiler" }),
+  ).toBeInTheDocument();
+  const toggle = screen.getByRole("button", { name: "Live panel" });
+  expect(toggle).toHaveAttribute("aria-pressed", "false");
+  expect(toggle).not.toHaveAttribute("aria-controls");
+  expect(
+    screen.queryByRole("complementary", { name: "Live activity" }),
+  ).toBeNull();
+  expect(liveReads()).toEqual([]);
+  await userEvent.click(toggle);
+  expect(
+    await screen.findByRole("complementary", { name: "Live activity" }),
+  ).toBeInTheDocument();
+  expect(localStorage.getItem("roadmap-live-panel")).toBe("open");
+  await waitFor(() => expect(liveReads()).toHaveLength(1));
 });

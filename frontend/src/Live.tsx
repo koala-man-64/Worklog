@@ -12,26 +12,27 @@ import { Empty, ErrorMessage } from "./ui/Messages";
 import type {
   LiveAgentNode,
   LivePulse,
+  LiveRepoNode,
   LiveWorkNode,
   LiveSnapshot,
   LiveSwimlaneSpan,
 } from "./apiTypes";
 
 // Each poll reads the whole live picture: every 15 seconds is current enough (audit 3.7, P7).
-const LIVE_REFRESH_MS = 15_000;
+export const LIVE_REFRESH_MS = 15_000;
 
-type WindowMinutes = 15 | 60 | 360 | 1440;
+export type WindowMinutes = 15 | 60 | 360 | 1440;
 type Mode = "flow" | "lanes";
 type Focus = { kind: "work" | "agent" | "repo" | "person" | "pulse"; id: string };
 type Point = { x: number; y: number };
 
-const WINDOWS: { value: WindowMinutes; label: string }[] = [
+export const WINDOWS: { value: WindowMinutes; label: string }[] = [
   { value: 15, label: "15m" },
   { value: 60, label: "1h" },
   { value: 360, label: "6h" },
   { value: 1440, label: "24h" },
 ];
-const STATES: Record<LiveAgentNode["state"], string> = {
+export const STATES: Record<LiveAgentNode["state"], string> = {
   working: "Working",
   waiting: "Waiting on you",
   reporting: "Reporting work",
@@ -54,7 +55,7 @@ const OBSERVABLE = /claude|anthropic|antigravity/i;
 
 // Worklog finds local Claude and Antigravity sessions running on this machine. For an agent of
 // another provider, no session found says nothing about whether it runs.
-function sessionText(agent: LiveAgentNode) {
+export function sessionText(agent: LiveAgentNode) {
   if (agent.sessionState) return SESSION[agent.sessionState];
   const providers = [...agent.providers, ...agent.chats.map((chat) => chat.provider)].filter(Boolean);
   return providers.length > 0 && !providers.some((provider) => OBSERVABLE.test(provider))
@@ -92,11 +93,11 @@ function curve(from: Point, to: Point) {
   return `M ${from.x.toFixed(1)} ${from.y.toFixed(1)} C ${from.x.toFixed(1)} ${(from.y + bend).toFixed(1)}, ${to.x.toFixed(1)} ${(to.y - bend).toFixed(1)}, ${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
 }
 
-type WorkGroup = { id: string; title: string | null; nodes: LiveWorkNode[] };
+export type WorkGroup = { id: string; title: string | null; nodes: LiveWorkNode[] };
 
 // One group per roadmap, in the order the server sends them: the roadmap, then each step
 // followed by its own work items, then the roadmap's items that sit under no step shown.
-function workGroups(work: LiveWorkNode[]): WorkGroup[] {
+export function workGroups(work: LiveWorkNode[]): WorkGroup[] {
   const groups = new Map<string, LiveWorkNode[]>();
   for (const node of work) {
     const id = node.roadmapId ?? "";
@@ -139,7 +140,20 @@ function byBarycenter<T extends { id: string }>(nodes: T[], above: (id: string) 
     .map((entry) => entry.node);
 }
 
-function formatTime(value: string) {
+/**
+ * The live read for a window, and for a roadmap with its sub-roadmaps when one is given. The Live
+ * page and a roadmap's Live panel build it alike, so they share one cached answer.
+ */
+export function liveAddress(roadmapId: string | undefined, windowMinutes: number, includeIdle: boolean) {
+  const params = new URLSearchParams({
+    windowMinutes: String(windowMinutes),
+    includeIdle: String(includeIdle),
+  });
+  if (roadmapId) params.set("roadmapId", roadmapId);
+  return `/live?${params.toString()}`;
+}
+
+export function formatTime(value: string) {
   return new Date(value).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
@@ -209,13 +223,8 @@ export function Live({
   const [focus, setFocus] = useState<Focus | null>(null);
   const [selectedPulseId, setSelectedPulseId] = useState<string | null>(null);
   const roadmapId = pinnedRoadmapId ?? (selectedRoadmapId || undefined);
-  const params = new URLSearchParams({
-    windowMinutes: String(windowMinutes),
-    includeIdle: String(includeIdle),
-  });
-  if (roadmapId) params.set("roadmapId", roadmapId);
   const query = useData<LiveSnapshot>(
-    `/live?${params.toString()}`,
+    liveAddress(roadmapId, windowMinutes, includeIdle),
     paused ? undefined : LIVE_REFRESH_MS,
     { keepPrevious: true },
   );
@@ -663,57 +672,7 @@ function FlowMap({
                   <h3>{repo.name}</h3>
                   {repo.unreviewed && <span className="live-neutral">unreviewed</span>}
                 </div>
-                {typeof repo.maxActiveLeases === "number" && (
-                  <div className="live-chips live-slot-chips">
-                    <span className={repo.maxActiveLeases === 0 ? "live-warning" : undefined}>
-                      {repo.maxActiveLeases === 0
-                        ? "Frozen (0/0)"
-                        : `Slots ${repo.activeLeases}/${repo.maxActiveLeases}`}
-                    </span>
-                    {repo.queuedLeases > 0 && (
-                      <span className="live-warning">+{repo.queuedLeases} queued</span>
-                    )}
-                    {repo.baseReadonly && <span>Base locked</span>}
-                    {repo.dirtySlots > 0 && (
-                      <span className="live-warning">{repo.dirtySlots} dirty</span>
-                    )}
-                    {repo.rescuedLeases > 0 && (
-                      <span>{repo.rescuedLeases} rescued</span>
-                    )}
-                  </div>
-                )}
-                {(repo.tier != null ||
-                  repo.effectiveWipCap != null ||
-                  repo.frozenWaveName ||
-                  repo.pendingRepinsCount > 0) && (
-                  <div className="live-chips">
-                    {repo.tier != null && <span>Tier {repo.tier}</span>}
-                    {repo.effectiveWipCap != null && (
-                      <span className={repo.overWipCap ? "live-warning" : undefined}>
-                        {repo.overWipCap ? "Over cap: " : "WIP "}
-                        {repo.agentCount}/{repo.effectiveWipCap}
-                      </span>
-                    )}
-                    {repo.doingStepCount > 0 && (
-                      <span>{repo.doingStepCount} doing</span>
-                    )}
-                    {repo.frozenWaveName && (
-                      <span className="live-warning">
-                        Frozen: {repo.frozenWaveName}
-                      </span>
-                    )}
-                    {repo.pendingRepinsCount > 0 && (
-                      <span className="live-warning">
-                        {repo.pendingRepinsCount} re-pin pending
-                      </span>
-                    )}
-                  </div>
-                )}
-                {repo.overlapCount >= 2 && repo.effectiveWipCap == null && (
-                  <strong className="live-warning">
-                    Overlap: {repo.overlapCount} agents
-                  </strong>
-                )}
+                <RepoChips repo={repo} />
                 {repo.branches.length > 0 && <div className="live-branches">{repo.branches.map((branch) => <code key={branch}>{branch}</code>)}</div>}
                 <footer className="live-links">
                   <a href={repo.href} onClick={(event) => event.stopPropagation()}>Open repository</a>
@@ -725,6 +684,65 @@ function FlowMap({
         </div>
       </section>
     </div>
+  );
+}
+
+/** A repository's slots, execution policy and overlap, as its Live card and a roadmap's Live panel show them. */
+export function RepoChips({ repo }: { repo: LiveRepoNode }) {
+  return (
+    <>
+      {typeof repo.maxActiveLeases === "number" && (
+        <div className="live-chips live-slot-chips">
+          <span className={repo.maxActiveLeases === 0 ? "live-warning" : undefined}>
+            {repo.maxActiveLeases === 0
+              ? "Frozen (0/0)"
+              : `Slots ${repo.activeLeases}/${repo.maxActiveLeases}`}
+          </span>
+          {repo.queuedLeases > 0 && (
+            <span className="live-warning">+{repo.queuedLeases} queued</span>
+          )}
+          {repo.baseReadonly && <span>Base locked</span>}
+          {repo.dirtySlots > 0 && (
+            <span className="live-warning">{repo.dirtySlots} dirty</span>
+          )}
+          {repo.rescuedLeases > 0 && (
+            <span>{repo.rescuedLeases} rescued</span>
+          )}
+        </div>
+      )}
+      {(repo.tier != null ||
+        repo.effectiveWipCap != null ||
+        repo.frozenWaveName ||
+        repo.pendingRepinsCount > 0) && (
+        <div className="live-chips">
+          {repo.tier != null && <span>Tier {repo.tier}</span>}
+          {repo.effectiveWipCap != null && (
+            <span className={repo.overWipCap ? "live-warning" : undefined}>
+              {repo.overWipCap ? "Over cap: " : "WIP "}
+              {repo.agentCount}/{repo.effectiveWipCap}
+            </span>
+          )}
+          {repo.doingStepCount > 0 && (
+            <span>{repo.doingStepCount} doing</span>
+          )}
+          {repo.frozenWaveName && (
+            <span className="live-warning">
+              Frozen: {repo.frozenWaveName}
+            </span>
+          )}
+          {repo.pendingRepinsCount > 0 && (
+            <span className="live-warning">
+              {repo.pendingRepinsCount} re-pin pending
+            </span>
+          )}
+        </div>
+      )}
+      {repo.overlapCount >= 2 && repo.effectiveWipCap == null && (
+        <strong className="live-warning">
+          Overlap: {repo.overlapCount} agents
+        </strong>
+      )}
+    </>
   );
 }
 

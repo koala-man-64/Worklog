@@ -1163,3 +1163,246 @@ section.step-outcome > h3 {
   margin: 6px 0 0;
   padding-left: 18px;
 }
+/* A roadmap's views, with Live beside them once the page has room for both: the panel keeps 300px
+   and the view the 624px the outline and its step need (LIVE_PANEL_MIN and LIVE_MAIN_MIN in
+   Roadmaps.tsx), 948px in all with the handle. Narrower, the panel sits under the view. The views
+   fill their column as they filled the screen before. */
+.roadmap-body {
+  container: roadmap-body / inline-size;
+}
+.roadmap-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 16px;
+}
+.roadmap-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.roadmap-columns > .resize-handle {
+  display: none;
+}
+@media (min-width: 900px) and (min-height: 560px) {
+  .roadmap-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .roadmap-columns {
+    flex: 1;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  /* The views that scroll as a whole, such as the Live tab, scroll here, under the header. */
+  .roadmap-main {
+    min-height: 0;
+    overflow-y: auto;
+  }
+  /* Under the view, the panel takes two fifths of the height and scrolls on its own. */
+  .roadmap-columns.has-live-panel {
+    grid-template-rows: minmax(0, 3fr) minmax(0, 2fr);
+  }
+}
+@container roadmap-body (min-width: 948px) {
+  .roadmap-columns.has-live-panel {
+    grid-template-columns:
+      minmax(0, 1fr) 24px
+      clamp(300px, var(--live-panel-width, 360px), calc(100% - 648px));
+    grid-template-rows: minmax(0, 1fr);
+    column-gap: 0;
+  }
+  .roadmap-columns.has-live-panel > .resize-handle {
+    display: block;
+  }
+}
+.roadmap-live-panel .panel-head {
+  flex-wrap: nowrap;
+  padding-block: 10px;
+}
+.roadmap-live-panel .panel-head h2 {
+  font-size: 20px;
+}
+.roadmap-live-panel .live-beacon {
+  margin-right: auto;
+  font-size: 0.8rem;
+}
+.roadmap-live-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.85rem;
+}
+.roadmap-live-controls a {
+  margin-left: auto;
+}
+.roadmap-live-panel .panel-body {
+  padding: 4px 16px 12px;
+}
+/* Each tile rules its right and lower edge; the frame clips those on its own edge, and a short last
+   row leaves plain paper, not an empty tile. */
+.roadmap-live-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  margin: 10px 0 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--paper);
+}
+.roadmap-live-summary > div {
+  padding: 6px 10px;
+  box-shadow:
+    1px 0 0 var(--line),
+    0 1px 0 var(--line);
+}
+.roadmap-live-summary dt,
+.roadmap-live-section h3,
+.roadmap-live-panel .live-waits h2 {
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.roadmap-live-summary dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  line-height: 1.15;
+}
+.roadmap-live-summary .is-warning dd {
+  color: var(--status-doing-ink);
+}
+.roadmap-live-section {
+  margin-top: 14px;
+}
+.roadmap-live-section h3,
+.roadmap-live-panel .live-waits h2 {
+  margin: 0 0 4px;
+}
+.roadmap-live-list,
+.roadmap-live-ties,
+.roadmap-live-pulses {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.roadmap-live-list > li {
+  min-width: 0;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+.roadmap-live-row {
+  display: flex;
+  align-items: center;
+  gap: 6px 8px;
+  min-width: 0;
+}
+.roadmap-live-row .item-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.9rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.roadmap-live-row > span {
+  flex: none;
+}
+.roadmap-live-meta {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+.roadmap-live-ties {
+  display: grid;
+  gap: 3px;
+  margin-top: 5px;
+  font-size: 0.8rem;
+}
+.roadmap-live-ties li {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.roadmap-live-ties a,
+.roadmap-live-ties code {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* A repository's name keeps its room before its branch does, and neither shrinks away. */
+.roadmap-live-ties li > a {
+  min-width: 6ch;
+}
+.roadmap-live-ties code {
+  flex: 1 1 0;
+  min-width: 8ch;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.roadmap-live-ties .is-stale {
+  opacity: 0.6;
+}
+.roadmap-live-kind {
+  flex: none;
+  width: 4rem;
+  color: var(--muted);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.roadmap-live-caption {
+  margin: 8px 0 2px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.roadmap-live-agent .live-note {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  margin: 5px 0 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.roadmap-live-repo .live-branches code {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.roadmap-live-pulses a {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: 6px;
+  padding: 5px 0;
+  border-top: 1px solid var(--line);
+  color: inherit;
+  font-size: 0.78rem;
+  text-decoration: none;
+}
+.roadmap-live-pulses time {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.roadmap-live-pulses span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.roadmap-live-pulses a:hover span {
+  text-decoration: underline;
+}
+.roadmap-live-panel .live-waits {
+  margin-top: 10px;
+}
