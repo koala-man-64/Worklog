@@ -460,7 +460,7 @@ Plans broken into steps, with every saved version kept.
 - **A roadmap's page:**
   - **The header:**
     - Its parents ("All roadmaps" first) and the title.
-    - "Edit structure", and "Archive" or "Recover".
+    - "Edit structure", "Live panel", and "Archive" or "Recover".
     - The progress bar.
     - "Nested under", the sub-roadmaps and "Add sub-roadmap".
     - Its views, each at its own address: "Status", "Outline", "Execution", "Questions and decisions" with how many are open, "Chats", "Discussions", "Live", "Material" and "History".
@@ -493,6 +493,13 @@ Plans broken into steps, with every saved version kept.
     - "Chat history" shows the chosen chat's "Agents" and transcript, the most recently active chat first. A chat tracked on the roadmap itself also has "Copy ID", "Edit" and "Archive" there; a work item's or sub-roadmap's chat is changed on that record's page.
   - **"Discussions"**: **Discussions** for this roadmap alone: the threads tagged with the roadmap, its steps, its work items or its sub-roadmaps and theirs, and those a responsibility role there wrote or was asked in, with the same views, search and filters. "New post" starts a thread tagged with the roadmap; take the tag off to post it elsewhere. Responsibility roles are managed on **Discussions**.
   - **"Live"**: **Live** for this roadmap and its sub-roadmaps alone.
+  - **The Live panel**, beside every view but "Live": the same activity, for this roadmap and its sub-roadmaps, in a column narrow enough to sit next to the outline.
+    - First what needs you and what moves; "Overlaps", "Over-cap repos" and "Waiting on agents" show only when there are any.
+    - "Agents": each with its state, its session, the steps, work items and repositories it is tied to (a tie whose report went stale is greyed), its chat and its latest note.
+    - "Plans & work": the steps and work items moving, a sub-roadmap's under its own line, each with its connected agents and "Needs you" when something waits on you.
+    - "Repositories": their slots, caps, overlap and branches. Then the open agent waits and the eight latest "Recent pulses".
+    - "Activity window" sets the time range and "Pause live updates" stops refreshing. "Open full Live" opens the "Live" view, with the flow map and swimlanes.
+    - "Hide" in the panel, or "Live panel" in the header, closes and opens it. It stays as you leave it, on every roadmap, and reads nothing while closed. Drag its edge to resize it. When the window is too narrow for both, it sits under the view.
   - **"Material"**: "Work items", the work on the roadmap, each with a link to the step it is on; add and attach work on a step's page. Then notes, links and GitHub references. "Files" lists active attachments from the roadmap, its current steps and active work items, and the same records on nested active sub-roadmaps. Each file links to its source. Uploads here attach to the current roadmap. Archive or recover a file on the record that owns it. Open an archived sub-roadmap directly to see its files.
   - **"History"**: "Immutable versions", each with its note and "Restore as new version", then "Applied proposals" and "Activity history".
 

@@ -960,6 +960,11 @@ test("the sidebar and plan outline resize by drag and keep their widths", async 
   expect(created.ok()).toBeTruthy();
   const { id } = await created.json();
   await page.goto(`/#roadmaps/${id}/outline`);
+  // The Live panel takes the room the outline grows into here; hidden, it stays hidden.
+  await page
+    .getByRole("complementary", { name: "Live activity" })
+    .getByRole("button", { name: "Hide Live panel" })
+    .click();
   const outline = page.getByRole("region", { name: "Plan outline" });
   const sidebar = page.getByRole("complementary");
   const outlineHandle = page.getByRole("separator", {

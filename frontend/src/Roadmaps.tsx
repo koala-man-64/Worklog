@@ -54,6 +54,7 @@ import {
 import { RepositoryBadges, RepositoryPicker } from "./RepositoryControls";
 import { Discussions } from "./Discussions";
 import { Live } from "./Live";
+import { RoadmapLivePanel } from "./RoadmapLivePanel";
 import type {
   Answer,
   PlanStep,
@@ -71,6 +72,12 @@ import { Icon } from "./icons";
 const OUTLINE_MIN = 300;
 const DETAIL_MIN = 300;
 const HANDLE_WIDTH = 24;
+// Matches the Live panel's clamp in styles/roadmaps.css: the panel keeps 300px, and the view beside
+// it keeps the room the outline and its step need (624px).
+const LIVE_PANEL_MIN = 300;
+const LIVE_MAIN_MIN = OUTLINE_MIN + HANDLE_WIDTH + DETAIL_MIN;
+// Whether the Live panel shows beside a roadmap's views: open unless closed, on every roadmap.
+const LIVE_PANEL_KEY = "roadmap-live-panel";
 // Agents report as they work, so who works where refreshes as on the Agents page.
 const AGENTS_REFRESH = 30_000;
 // Steps by the status they show, in the order a status bar fills: done first, then active (an
@@ -340,6 +347,13 @@ export function RoadmapDetail({
   const outlineWidth = useStoredWidth("outline-width", OUTLINE_MIN, 2000);
   const detailRef = useRef<HTMLDivElement>(null);
   const viewHeading = useId();
+  const [liveOpen, setLiveOpenState] = useState(
+    () => localStore.read(LIVE_PANEL_KEY).value !== "closed",
+  );
+  const liveColumnsRef = useRef<HTMLDivElement>(null);
+  const livePanelRef = useRef<HTMLElement>(null);
+  const liveWidth = useStoredWidth("roadmap-live-width", LIVE_PANEL_MIN, 2000);
+  const livePanelId = useId();
   const stepAgents = useData<RoadmapAgents>(
     `/roadmaps/${id}/agents`,
     AGENTS_REFRESH,
@@ -362,6 +376,10 @@ export function RoadmapDetail({
   function setCollapsed(next: Set<string>) {
     setCollapsedState(next);
     localStore.write(collapsedKey, JSON.stringify([...next]));
+  }
+  function setLiveOpen(open: boolean) {
+    setLiveOpenState(open);
+    localStore.write(LIVE_PANEL_KEY, open ? "open" : "closed");
   }
   if (!road)
     return (
@@ -930,6 +948,7 @@ export function RoadmapDetail({
     </>
   );
   const shown = VIEWS.find((v) => v.id === view)!;
+  const showLive = liveOpen && view !== "live";
   return (
     <div className="bounded-screen">
       <ErrorMessage error={dependencies.error} />
@@ -980,6 +999,16 @@ export function RoadmapDetail({
             >
               {editing ? "Close editor" : "Edit structure"}
             </button>
+            {/* The Live tab shows all of it; elsewhere Live can sit beside the view. */}
+            {view !== "live" && (
+              <button
+                aria-pressed={liveOpen}
+                aria-controls={liveOpen ? livePanelId : undefined}
+                onClick={() => setLiveOpen(!liveOpen)}
+              >
+                Live panel
+              </button>
+            )}
             <button
               onClick={() =>
                 action.mutate(() =>
@@ -1093,215 +1122,252 @@ export function RoadmapDetail({
         </nav>
       </header>
       <ErrorMessage error={action.error} />
-      {view === "outline" ? (
+      <div className="roadmap-body">
         <div
-          className="split roadmap-split"
-          ref={splitRef}
+          className={"roadmap-columns" + (showLive ? " has-live-panel" : "")}
+          ref={liveColumnsRef}
           style={
-            outlineWidth.width === null
-              ? undefined
-              : ({
-                  "--outline-width": outlineWidth.width + "px",
-                } as CSSProperties)
+            showLive && liveWidth.width !== null
+              ? ({ "--live-panel-width": liveWidth.width + "px" } as CSSProperties)
+              : undefined
           }
         >
-          <div
-            className="panel"
-            role="region"
-            aria-label="Plan outline"
-            ref={outlinePanelRef}
-          >
-            <div className="panel-head">
-              <h2>Plan & progress</h2>
-              {(foldable.length > 0 || hasRetired) && (
-                <span className="toolbar">
-                  {foldable.length > 0 && (
+          <div className="roadmap-main">
+            {view === "outline" ? (
+              <div
+                className="split roadmap-split"
+                ref={splitRef}
+                style={
+                  outlineWidth.width === null
+                    ? undefined
+                    : ({
+                        "--outline-width": outlineWidth.width + "px",
+                      } as CSSProperties)
+                }
+              >
+                <div
+                  className="panel"
+                  role="region"
+                  aria-label="Plan outline"
+                  ref={outlinePanelRef}
+                >
+                  <div className="panel-head">
+                    <h2>Plan & progress</h2>
+                    {(foldable.length > 0 || hasRetired) && (
+                      <span className="toolbar">
+                        {foldable.length > 0 && (
+                          <>
+                            <button
+                              className="quiet"
+                              disabled={doneParents.every((p) => collapsed.has(p))}
+                              onClick={() =>
+                                setCollapsed(new Set([...collapsed, ...doneParents]))
+                              }
+                            >
+                              Collapse done
+                            </button>
+                            <button
+                              className="quiet"
+                              disabled={foldable.every((p) => collapsed.has(p))}
+                              onClick={() => setCollapsed(new Set(foldable))}
+                            >
+                              Collapse all
+                            </button>
+                            <button
+                              className="quiet"
+                              disabled={!foldable.some((p) => collapsed.has(p))}
+                              onClick={() => setCollapsed(new Set())}
+                            >
+                              Expand all
+                            </button>
+                          </>
+                        )}
+                        {hasRetired && (
+                          <label className="retired-toggle">
+                            <input
+                              type="checkbox"
+                              checked={showRetired}
+                              onChange={(e) => setShowRetired(e.target.checked)}
+                            />{" "}
+                            Show retired steps
+                          </label>
+                        )}
+                      </span>
+                    )}
+                  </div>
+                  <div className="panel-body" ref={outlineRef}>
+                    <ErrorMessage error={stepAgents.error} />
+                    {active.length > 0 && (
+                      <div className="outline-filters" aria-label="Filter outline">
+                        <label>
+                          <span className="visually-hidden">Repository</span>
+                          <select
+                            aria-label="Filter outline by repository"
+                            value={outlineRepoFilter}
+                            onChange={(e) => setOutlineRepoFilter(e.target.value)}
+                          >
+                            <option value="">All repositories</option>
+                            {catalogRepos.map((repo) => (
+                              <option key={repo.id} value={repo.id}>
+                                {repo.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          <span className="visually-hidden">Work class</span>
+                          <select
+                            aria-label="Filter outline by work class"
+                            value={outlineClassFilter}
+                            onChange={(e) => setOutlineClassFilter(e.target.value)}
+                          >
+                            <option value="">All work classes</option>
+                            {WORK_CLASS_OPTIONS.filter((o) => o.value !== "").map(
+                              (opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </option>
+                              ),
+                            )}
+                          </select>
+                        </label>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={outlineMultiRepoOnly}
+                            onChange={(e) => setOutlineMultiRepoOnly(e.target.checked)}
+                          />{" "}
+                          Multi-repo leaves only
+                        </label>
+                        {outlineFiltered && (
+                          <button
+                            type="button"
+                            className="quiet"
+                            onClick={() => {
+                              setOutlineRepoFilter("");
+                              setOutlineClassFilter("");
+                              setOutlineMultiRepoOnly(false);
+                            }}
+                          >
+                            Clear filters
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {workers.length > 0 && (
+                      <p className="agents-here">
+                        <small className="muted">Agents working here</small>
+                        <AgentChips
+                          placed={workersOn(workers)}
+                          stepTitle={stepTitle}
+                          limit={8}
+                        />
+                      </p>
+                    )}
+                    {!shownTree.size ? (
+                      <Empty>Add the first step in the structure editor.</Empty>
+                    ) : (
+                      <ul className="outline">{render(null)}</ul>
+                    )}
+                  </div>
+                </div>
+                <ResizeHandle
+                  label="Resize plan outline"
+                  panel={outlinePanelRef}
+                  min={OUTLINE_MIN}
+                  max={() =>
+                    (splitRef.current?.getBoundingClientRect().width ?? 0) -
+                    HANDLE_WIDTH -
+                    DETAIL_MIN
+                  }
+                  onResize={outlineWidth.resize}
+                  onReset={outlineWidth.reset}
+                />
+                <div
+                  className="pane detail"
+                  role="region"
+                  aria-label={editor ? "Structure editor" : "Step details"}
+                  ref={detailRef}
+                  key={(editor ? "editor:" : "") + (selected?.id ?? "roadmap")}
+                >
+                  {editor ? (
+                    <StructureEditor
+                      key={road.revision}
+                      roadmap={road}
+                      onDone={() => setEditing(false)}
+                    />
+                  ) : selected ? (
+                    stepDetail
+                  ) : (
                     <>
-                      <button
-                        className="quiet"
-                        disabled={doneParents.every((p) => collapsed.has(p))}
-                        onClick={() =>
-                          setCollapsed(new Set([...collapsed, ...doneParents]))
-                        }
-                      >
-                        Collapse done
-                      </button>
-                      <button
-                        className="quiet"
-                        disabled={foldable.every((p) => collapsed.has(p))}
-                        onClick={() => setCollapsed(new Set(foldable))}
-                      >
-                        Collapse all
-                      </button>
-                      <button
-                        className="quiet"
-                        disabled={!foldable.some((p) => collapsed.has(p))}
-                        onClick={() => setCollapsed(new Set())}
-                      >
-                        Expand all
-                      </button>
+                      {step && (
+                        <p className="warning">
+                          That step is not in the current plan. It may have been
+                          retired.
+                        </p>
+                      )}
+                      <p className="muted">
+                        Choose a step to see its work, chats and notes.
+                      </p>
                     </>
                   )}
-                  {hasRetired && (
-                    <label className="retired-toggle">
-                      <input
-                        type="checkbox"
-                        checked={showRetired}
-                        onChange={(e) => setShowRetired(e.target.checked)}
-                      />{" "}
-                      Show retired steps
-                    </label>
-                  )}
-                </span>
-              )}
-            </div>
-            <div className="panel-body" ref={outlineRef}>
-              <ErrorMessage error={stepAgents.error} />
-              {active.length > 0 && (
-                <div className="outline-filters" aria-label="Filter outline">
-                  <label>
-                    <span className="visually-hidden">Repository</span>
-                    <select
-                      aria-label="Filter outline by repository"
-                      value={outlineRepoFilter}
-                      onChange={(e) => setOutlineRepoFilter(e.target.value)}
-                    >
-                      <option value="">All repositories</option>
-                      {catalogRepos.map((repo) => (
-                        <option key={repo.id} value={repo.id}>
-                          {repo.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    <span className="visually-hidden">Work class</span>
-                    <select
-                      aria-label="Filter outline by work class"
-                      value={outlineClassFilter}
-                      onChange={(e) => setOutlineClassFilter(e.target.value)}
-                    >
-                      <option value="">All work classes</option>
-                      {WORK_CLASS_OPTIONS.filter((o) => o.value !== "").map(
-                        (opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ),
-                      )}
-                    </select>
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={outlineMultiRepoOnly}
-                      onChange={(e) => setOutlineMultiRepoOnly(e.target.checked)}
-                    />{" "}
-                    Multi-repo leaves only
-                  </label>
-                  {outlineFiltered && (
-                    <button
-                      type="button"
-                      className="quiet"
-                      onClick={() => {
-                        setOutlineRepoFilter("");
-                        setOutlineClassFilter("");
-                        setOutlineMultiRepoOnly(false);
-                      }}
-                    >
-                      Clear filters
-                    </button>
-                  )}
                 </div>
-              )}
-              {workers.length > 0 && (
-                <p className="agents-here">
-                  <small className="muted">Agents working here</small>
-                  <AgentChips
-                    placed={workersOn(workers)}
-                    stepTitle={stepTitle}
-                    limit={8}
-                  />
-                </p>
-              )}
-              {!shownTree.size ? (
-                <Empty>Add the first step in the structure editor.</Empty>
-              ) : (
-                <ul className="outline">{render(null)}</ul>
-              )}
-            </div>
-          </div>
-          <ResizeHandle
-            label="Resize plan outline"
-            panel={outlinePanelRef}
-            min={OUTLINE_MIN}
-            max={() =>
-              (splitRef.current?.getBoundingClientRect().width ?? 0) -
-              HANDLE_WIDTH -
-              DETAIL_MIN
-            }
-            onResize={outlineWidth.resize}
-            onReset={outlineWidth.reset}
-          />
-          <div
-            className="pane detail"
-            role="region"
-            aria-label={editor ? "Structure editor" : "Step details"}
-            ref={detailRef}
-            key={(editor ? "editor:" : "") + (selected?.id ?? "roadmap")}
-          >
-            {editor ? (
-              <StructureEditor
-                key={road.revision}
-                roadmap={road}
-                onDone={() => setEditing(false)}
+              </div>
+            ) : view === "execution" ? (
+              <RoadmapExecution roadmapId={id} archived={road.archived} openByStep={openByStep} />
+            ) : view === "chats" ? (
+              <RoadmapChats road={road} chat={chat} />
+            ) : view === "discussions" ? (
+              <Discussions
+                roadmap={{ id: road.id, title: road.title }}
+                selected={chat}
               />
-            ) : selected ? (
-              stepDetail
+            ) : view === "live" ? (
+              <Live roadmapId={id} embedded />
             ) : (
-              <>
-                {step && (
-                  <p className="warning">
-                    That step is not in the current plan. It may have been
-                    retired.
-                  </p>
-                )}
-                <p className="muted">
-                  Choose a step to see its work, chats and notes.
-                </p>
-              </>
+              <div
+                className="pane roadmap-view"
+                role="region"
+                aria-labelledby={viewHeading}
+              >
+                <h2 className="visually-hidden" id={viewHeading}>
+                  {shown.label}
+                </h2>
+                {view === "status"
+                  ? statusView
+                  : view === "questions"
+                    ? questionsView
+                    : view === "material"
+                      ? materialView
+                      : historyView}
+              </div>
             )}
           </div>
+          {showLive && (
+            <>
+              <ResizeHandle
+                label="Resize Live panel"
+                panel={livePanelRef}
+                side="right"
+                min={LIVE_PANEL_MIN}
+                max={() =>
+                  (liveColumnsRef.current?.getBoundingClientRect().width ?? 0) -
+                  HANDLE_WIDTH -
+                  LIVE_MAIN_MIN
+                }
+                onResize={liveWidth.resize}
+                onReset={liveWidth.reset}
+              />
+              <RoadmapLivePanel
+                id={livePanelId}
+                roadmapId={id}
+                panelRef={livePanelRef}
+                onClose={() => setLiveOpen(false)}
+              />
+            </>
+          )}
         </div>
-      ) : view === "execution" ? (
-        <RoadmapExecution roadmapId={id} archived={road.archived} openByStep={openByStep} />
-      ) : view === "chats" ? (
-        <RoadmapChats road={road} chat={chat} />
-      ) : view === "discussions" ? (
-        <Discussions
-          roadmap={{ id: road.id, title: road.title }}
-          selected={chat}
-        />
-      ) : view === "live" ? (
-        <Live roadmapId={id} embedded />
-      ) : (
-        <div
-          className="pane roadmap-view"
-          role="region"
-          aria-labelledby={viewHeading}
-        >
-          <h2 className="visually-hidden" id={viewHeading}>
-            {shown.label}
-          </h2>
-          {view === "status"
-            ? statusView
-            : view === "questions"
-              ? questionsView
-              : view === "material"
-                ? materialView
-                : historyView}
-        </div>
-      )}
+      </div>
       {splittingStep && (
         <StepSplitDialog
           step={{
