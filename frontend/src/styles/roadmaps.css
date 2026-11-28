@@ -625,23 +625,7 @@ button.agent-chip.more {
     padding: 15px;
   }
 }
-@media not all and (min-width: 900px) and (min-height: 560px) {
-  .roadmap-split > .resize-handle {
-    display: none;
-  }
-}
 @media (min-width: 900px) and (min-height: 560px) {
-  /* The outline takes 6/13 of the row until dragged to --outline-width; either way it keeps 300px and leaves the detail 300px (OUTLINE_MIN and DETAIL_MIN in Roadmaps.tsx). The 24px handle column is the gap. */
-  .roadmap-split {
-    grid-template-columns:
-      clamp(
-        300px,
-        var(--outline-width, calc((100% - 24px) * 6 / 13)),
-        calc(100% - 324px)
-      )
-      24px minmax(0, 1fr);
-    column-gap: 0;
-  }
   .roadmaps-split {
     grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr);
   }
@@ -1163,10 +1147,10 @@ section.step-outcome > h3 {
   margin: 6px 0 0;
   padding-left: 18px;
 }
-/* A roadmap's views, with Live beside them once the page has room for both: the panel keeps 300px
-   and the view the 624px the outline and its step need (LIVE_PANEL_MIN and LIVE_MAIN_MIN in
-   Roadmaps.tsx), 948px in all with the handle. Narrower, the panel sits under the view. The views
-   fill their column as they filled the screen before. */
+/* A roadmap's views, with Live beside them once the page has room for both: on Outline, step
+   details and the structure editor sit in a tab inside the right panel, so the outline keeps 300px
+   and the panel 300px (624px in all with the 24px handle); other views keep 624px (948px in all).
+   Narrower, the panel sits under the view. */
 .roadmap-body {
   container: roadmap-body / inline-size;
 }
@@ -1179,6 +1163,9 @@ section.step-outcome > h3 {
   display: flex;
   flex-direction: column;
   min-width: 0;
+}
+.roadmap-outline-panel {
+  align-self: stretch;
 }
 .roadmap-columns > .resize-handle {
   display: none;
@@ -1205,15 +1192,31 @@ section.step-outcome > h3 {
     grid-template-rows: minmax(0, 3fr) minmax(0, 2fr);
   }
 }
+@container roadmap-body (min-width: 624px) {
+  .roadmap-columns.has-live-panel.is-outline {
+    grid-template-columns:
+      minmax(0, 1fr) 24px
+      clamp(
+        300px,
+        var(--live-panel-width, min(calc((100% - 24px) * 7 / 13), 640px)),
+        calc(100% - 324px)
+      );
+    grid-template-rows: minmax(0, 1fr);
+    column-gap: 0;
+  }
+  .roadmap-columns.has-live-panel.is-outline > .resize-handle {
+    display: block;
+  }
+}
 @container roadmap-body (min-width: 948px) {
-  .roadmap-columns.has-live-panel {
+  .roadmap-columns.has-live-panel:not(.is-outline) {
     grid-template-columns:
       minmax(0, 1fr) 24px
       clamp(300px, var(--live-panel-width, 360px), calc(100% - 648px));
     grid-template-rows: minmax(0, 1fr);
     column-gap: 0;
   }
-  .roadmap-columns.has-live-panel > .resize-handle {
+  .roadmap-columns.has-live-panel:not(.is-outline) > .resize-handle {
     display: block;
   }
 }
@@ -1228,6 +1231,41 @@ section.step-outcome > h3 {
   margin-right: auto;
   font-size: 0.8rem;
 }
+.roadmap-live-panel.has-tabs > .panel-head {
+  padding: 4px 12px 0;
+  gap: 8px;
+  align-items: center;
+}
+.roadmap-live-tabs {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-bottom: 0;
+  border-bottom: 0;
+}
+.roadmap-live-tabs > [role="tab"] {
+  min-height: 36px;
+  padding: 6px 10px;
+  margin-bottom: 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+.roadmap-live-panel.has-tabs > .panel-head > button {
+  flex: none;
+  margin-bottom: 4px;
+}
+.roadmap-live-tab-panel {
+  min-width: 0;
+  min-height: 0;
+}
+.roadmap-live-tab-panel:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.roadmap-live-tab-panel:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: -2px;
+}
 .roadmap-live-controls {
   display: flex;
   flex-wrap: wrap;
@@ -1237,11 +1275,21 @@ section.step-outcome > h3 {
   border-bottom: 1px solid var(--line);
   font-size: 0.85rem;
 }
+.roadmap-live-controls > .live-beacon {
+  margin-right: 4px;
+}
 .roadmap-live-controls a {
   margin-left: auto;
 }
 .roadmap-live-panel .panel-body {
   padding: 4px 16px 12px;
+}
+.roadmap-live-panel .roadmap-live-detail-body {
+  padding: 16px;
+}
+.roadmap-live-detail-body .structure-editor {
+  padding: 16px;
+  margin-bottom: 12px;
 }
 /* Each tile rules its right and lower edge; the frame clips those on its own edge, and a short last
    row leaves plain paper, not an empty tile. */
