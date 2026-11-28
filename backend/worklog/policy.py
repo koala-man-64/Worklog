@@ -248,6 +248,7 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/roadmaps": {"GET": READ, "POST": HUMAN},
     "/roadmaps/{identity}": {"GET": READ},
     "/roadmaps/{identity}/agents": {"GET": HUMAN},
+    "/roadmaps/{identity}/attachments": {"GET": HUMAN},
     "/roadmaps/{identity}/board": {"GET": HUMAN},
     "/roadmaps/{identity}/dispatch": {"GET": READ},
     "/roadmaps/{identity}/move": {"POST": HUMAN},

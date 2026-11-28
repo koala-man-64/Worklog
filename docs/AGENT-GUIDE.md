@@ -82,6 +82,7 @@ Records are archived, never deleted, and only the person archives or recovers th
 | Read work, days, roadmaps, steps, dispatch views, waves, repository queues, people, notes, tickets, resources, discussions, repositories, runs and proposals | yes | yes | - |
 | Read chat transcripts, the Claude Code sessions running on the person's machine, the Agents page, Settings, credentials, backups or the export | yes | no | - |
 | Prepare a Codex or Claude desktop session from a work item; read launch status or open that session | yes | no | - |
+| Start a local Codex or Claude child chat under your registered identity with `chats start` | - | yes | - |
 | Change work items, day entries, notes, roadmaps, progress, steps (including `step.create`, `step.split`, `step.move`), waves (`wave.create`, `wave.update`, `wave.steps`), people, links, tracked chats, GitHub references, questions or decisions | yes | no | yes |
 | Report consumer re-pin progress against a frozen wave repository (`waves repin`) | yes | yes (`in_progress`) | - |
 | Change wave status, freeze or unfreeze wave repositories, verify or waive re-pins, archive or recover waves, or reorder repository queues | yes | no | no |
@@ -350,7 +351,7 @@ worklog agent --as NAME proposal withdraw PROPOSAL_ID --revision 4
 | `updates list` | `[--repo ID] [--item ID] [--participation ID] [--limit 50] [--offset 0]` | - | - | updates as posted |
 | `updates post` | `--participation ID` and either `--text TEXT [--kind update\|blocker]` or `--file FILE` | - | required | immutable; advances the participation's revision |
 | `chats track` | `--item ITEM_ID`, or `--roadmap ROADMAP_ID [--step STEP_ID]` (repeat `--step`); `[--title TITLE] [--provider PROVIDER] [--model MODEL]` | - | required | tracks the chat you registered with there, and prints it with `created`; where it is tracked already, adds the steps you name |
-| `chats start` | `--provider codex\|claude [--cwd DIR] [--label LABEL]` | - | required | runs the installed provider CLI on this machine and registers its new chat as a child agent. See section 5.10. |
+| `chats start` | `--provider codex\|claude [--cwd DIR] [--label LABEL] [--model MODEL] [--reasoning-effort LEVEL]` | - | required | runs the installed provider CLI on this machine and registers its new chat as a child agent. See section 5.10. |
 | `dependencies report` | `--prerequisite-type TYPE --prerequisite-id UUID --context-type TYPE --context-id UUID --condition TEXT` | - | required | reports a wait as your own; prerequisite type may be repository, step, item, ticket or agent, while context type may be repository, step, item or ticket; ticket IDs are UUIDs |
 | `dependencies confirm ID` | `--revision N [--note TEXT]` | yes | required | confirms your own reported wait when its condition is met |
 | `dependencies archive ID` | `--revision N` | yes | required | archives your own reported wait |
@@ -717,34 +718,60 @@ Worklog stores pending notices while the receiver is disconnected. Reconnecting 
 
 When an existing agent owns the work, address its `agentId` directly. When you need a fresh recipient, run `chats start` as your own registered identity. The command uses the selected provider's installed CLI and local profile, completes a short preparation turn in the chosen directory, and registers the saved chat with Worklog. The directory defaults to your current folder.
 
-To send an assignment that the child can receive by push, enroll it before posting. Worklog queues the notice until the receiver connects.
+Use the starting agent's registered Worklog name for `--as` and the new chat's provider for `--provider`. `--model` takes a provider model ID or alias. `--reasoning-effort` takes an effort level supported by that provider and model. Each flag is optional. The provider chooses the default for an omitted flag. Claude accepts `low`, `medium`, `high`, `xhigh`, and `max`. Codex also accepts `none`, `minimal`, `ultra`, and `persistent`. Confirm model availability with the installed provider.
+
+**Claude Code starts Codex**
 
 ```powershell
-$child = worklog agent --as PARENT chats start --provider codex --cwd . --label 'Review agent' --request-id review-T12-session | ConvertFrom-Json
-$exe, $childArgs = $child.worklogCommand
-$enrollment = & $exe @childArgs push enroll --provider $child.provider --chat $child.chatId --request-id review-T12-enroll | ConvertFrom-Json
-worklog agent --as PARENT discussions post --text 'Please review the change.' --context ticket:T-12 --ask $child.agentId --request-id review-T12-ask
+$codexChild = worklog agent --as CLAUDE_PARENT chats start --provider codex --cwd . `
+  --model gpt-6.1-sol --reasoning-effort low --label 'Codex reviewer' `
+  --request-id review-T12-codex-session | ConvertFrom-Json
 ```
 
-For a Claude Code chat, use `--provider claude` in the same workflow. A standalone launch also prints the receipt as JSON.
+**Codex starts Claude Code**
+
+```powershell
+$claudeChild = worklog agent --as CODEX_PARENT chats start --provider claude --cwd . `
+  --model claude-sonnet-5-5 --reasoning-effort low --label 'Claude reviewer' `
+  --request-id review-T12-claude-session | ConvertFrom-Json
+```
+
+Without `--model` or `--reasoning-effort`, the provider uses its own defaults. A standalone launch prints the receipt as JSON:
 
 ```powershell
 worklog agent --as PARENT chats start --provider claude --cwd . --label 'Claude reviewer' --request-id claude-T12-session
 ```
 
-The receipt includes the Worklog recipient (`agentId`) and provider conversation (`chatId`). The child learns its exact CLI and arguments (`worklogCommand`) on its first turn. They select the same Worklog instance and the child's own named credential, including when the parent uses a custom URL or data directory. The parent's credential stays out of the provider process.
+The receipt includes `agentId` for Worklog requests, `chatId` for provider resume, and the chosen `requestedModel` and `reasoningEffort` when supplied. `model` is the model the provider reports when available. The child learns its exact CLI and arguments (`worklogCommand`) on its first turn. They select the same Worklog instance and the child's own named credential, including when the parent uses a custom URL or data directory. The parent's credential stays out of the provider process. The work-item launch route (`POST /api/v1/work-items/{id}/sessions`) requires the person's local browser session.
 
-For the Codex example above, keep this connector running on the same machine. It can wake the saved conversation for the first assignment and later requests.
+The launch flags apply to the preparation turn. To explicitly use the same choices when resuming in the provider's terminal, run the appropriate command in the returned `cwd` with the child's provider profile. For a one-off Codex turn outside a Git repository, use `codex exec resume --skip-git-repo-check` with the same model and config flags.
 
 ```powershell
-& $exe @childArgs push connect --enrollment-id $enrollment.id --chat $child.chatId --resume
+codex resume $codexChild.chatId --model gpt-6.1-sol --config 'model_reasoning_effort="low"'
+claude --resume $claudeChild.chatId --model claude-sonnet-5-5 --effort low
 ```
 
-For Claude Code, start its interactive channel as described in section 5.9 using the returned child command followed by `push channel` and the enrollment and chat IDs. Open Claude in the child's own terminal and provider environment. For either provider, you can also open the saved conversation in that environment from the returned `cwd` with `codex resume CHAT_ID` or `claude --resume CHAT_ID`. For a one-off Codex turn outside a Git repository, use `codex exec resume --skip-git-repo-check CHAT_ID PROMPT`.
+For Claude Desktop, set the matching `model` and `env.CLAUDE_CODE_EFFORT_LEVEL` in `.claude/settings.local.json` in the child's folder before opening the chat. If the file sets `env.ANTHROPIC_MODEL`, use the same model there. `chats start` uses the chosen working directory as-is. The person's **Start session** workflow can set up a dedicated Worklog checkout automatically.
+
+To send an assignment by push, enroll the child before posting. Use the matching parent name and returned receipt for either provider. In this example Claude Code assigns work to the Codex child. Worklog queues the notice until the receiver connects.
+
+```powershell
+$exe, $childArgs = $codexChild.worklogCommand
+$enrollment = & $exe @childArgs push enroll --provider $codexChild.provider --chat $codexChild.chatId --request-id review-T12-codex-enroll | ConvertFrom-Json
+worklog agent --as CLAUDE_PARENT discussions post --text 'Please review the change.' --context ticket:T-12 --ask $codexChild.agentId --request-id review-T12-codex-ask
+```
+
+For Codex, keep this connector running on the same machine to wake the saved conversation for the first assignment and later requests. The connector uses the provider's settings for the resumed chat.
+
+```powershell
+& $exe @childArgs push connect --enrollment-id $enrollment.id --chat $codexChild.chatId --resume
+```
+
+For Claude Code, start its interactive channel as described in section 5.9 using the returned child command followed by `push channel` and the enrollment and chat IDs. Give that `claude --resume` invocation the `--model` and `--effort` values you chose for the child.
 
 The child can receive Worklog requests immediately after registration. Reading its inbox also finds requests sent before enrollment. Its parent sponsors the identity. Retiring or revoking the parent revokes credentials it issued to its children.
 
-Use the same request ID, provider, directory and label to retry on the same machine and Worklog data directory. The local receipt preserves the confirmed chat ID across registration failures. If the provider may have started but returned no usable ID, inspect its saved sessions before issuing a new launch request.
+Use the same request ID, provider, directory, label, model and effort to retry on the same machine and Worklog data directory. The local receipt preserves the confirmed chat ID across registration failures. If the provider may have started but returned no usable ID, inspect its saved sessions before issuing a new launch request.
 
 ## 6. Proposals
 
@@ -1007,6 +1034,7 @@ worklog check
 | `session_launch` | 409 | No saved provider session is available to reopen | The person checks provider history before starting another session |
 | `not_an_agent` | 409 | The person asked to open the chat of a request slot that waits on no agent: their own, an open audience, or a role nobody owns | The person's; not yours |
 | `session_limit` | 429 | Two desktop chats are already being prepared | Wait for a preparation to finish |
+| `claude_settings` | 422 or 409 | A Claude launch that names a model or reasoning effort needs the same values in the folder's `.claude/settings.local.json`: `model`, `env.CLAUDE_CODE_EFFORT_LEVEL`, and `env.ANTHROPIC_MODEL` when it is set. The file must be ignored by Git and must not link outside the checkout (422). Or Worklog could not prepare, check or clear its own settings in a managed checkout, which needs an active lease on its assigned branch (409) | Set the matching values in that folder, or choose a managed checkout from the person's **Start session**. For 409, check the lease and its branch, then tell the person |
 | `database_busy` | 503 | The database was briefly locked | Retry the same command with the same request ID after a second |
 | `database_error` | 503 | A database operation failed; nothing was committed | Retry once with the same request ID, then tell the person |
 | `storage_error` | 503 | Disk or folder trouble on the person's machine | Tell the person |
@@ -1106,7 +1134,7 @@ A proposal's history (`GET /history?entityId=PROPOSAL_ID&payloads=true`) holds i
 
 History older than 90 days may be thinned. When the person runs `worklog compact`, the older changes to work items, the day's plan, notes, links, GitHub and file references, questions, decisions, attachments, roadmaps, steps, progress, and the plan imports, day reflections and checklist tasks of older versions keep only each record's `id`, `title`, `status` and `_statusChanged`, so a record with none of them reads `{}`, and a payload that is not a record, such as the day's order or an old reflection's text, reads `null`. Compaction also reduces, at any age, a proposal's stored status changes and the earlier side of its edits to the summary above, and old roadmap saves, archives, recoveries and moves that hold a whole step list to the roadmap's `id` and `title` (an archive, recovery or move also its `revision` and the field that changed). Every change stays listed, and changes of every other kind, `proposal.create` and `proposal.stale` among them, keep everything. Compaction also keeps each roadmap's 20 newest versions.
 
-- **Readable routes.** Worklog's route table (`policy.ROUTES`) lists each read an agent credential may make, in the scope `agent:read`: every GET under `/api/v1` but the person's. The person's are `/settings`, `/export`, `/openapi.json`, the usage counts `/usage`, the chat list `/chats` with a chat's `/chats/ID/transcript`, the running sessions `/claude-sessions`, desktop launch status `/session-launches/ID`, the dispatch queue `/dispatch-queue`, the live workflow `/live`, the registry `/pull-requests`, `/pull-requests/activity`, the agents `/agents`, `/agents/ID`, `/agents/ID/activity` and `/agents/ID/proposals`, and a roadmap's `/roadmaps/ID/agents` and status board `/roadmaps/ID/board`. Those return `403 agent_scope`. A route the table does not open to agents is the person's, so a new route starts closed to you.
+- **Readable routes.** Worklog's route table (`policy.ROUTES`) lists each read an agent credential may make, in the scope `agent:read`: every GET under `/api/v1` but the person's. The person's are `/settings`, `/export`, `/openapi.json`, the usage counts `/usage`, the chat list `/chats` with a chat's `/chats/ID/transcript`, the running sessions `/claude-sessions`, desktop launch status `/session-launches/ID`, the dispatch queue `/dispatch-queue`, the live workflow `/live`, the registry `/pull-requests`, `/pull-requests/activity`, the agents `/agents`, `/agents/ID`, `/agents/ID/activity` and `/agents/ID/proposals`, and a roadmap's `/roadmaps/ID/agents`, Material files `/roadmaps/ID/attachments`, and status board `/roadmaps/ID/board`. Those return `403 agent_scope`. A route the table does not open to agents is the person's, so a new route starts closed to you.
 - **Host header.** It must be `127.0.0.1:PORT`.
 - **Writes.** Make them only through the command line with `--as NAME`. A raw request carries the person's credential instead of your identity, and skips the client's safety checks.
 - **Contract.** `docs/API.md` describes the routes; `docs/openapi.json` is the generated schema.

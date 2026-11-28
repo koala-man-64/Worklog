@@ -251,6 +251,49 @@ def for_steps(c: sqlite3.Connection, roadmap_id: str) -> dict[str, dict]:
     return found
 
 
+def roadmap_attachments(c: sqlite3.Connection, roadmap_id: str) -> list[dict]:
+    """Active attachment metadata below the selected roadmap. An archived roadmap
+    remains accessible when opened directly; traversal follows active sub-roadmaps.
+    """
+    check_owner(c, "roadmap", roadmap_id, files=True)
+    rows = c.execute(
+        """
+        WITH RECURSIVE family(id, title) AS (
+            SELECT id, title FROM roadmaps WHERE id=?
+            UNION
+            SELECT r.id, r.title
+            FROM roadmaps r JOIN family f ON r.parent_id=f.id
+            WHERE r.archived=0
+        ),
+        family_steps AS (
+            SELECT s.id, s.title, s.retired, s.roadmap_id
+            FROM steps s JOIN family f ON s.roadmap_id=f.id
+        ),
+        owners(owner_type, owner_id, owner_title, roadmap_id, roadmap_title) AS (
+            SELECT 'roadmap', id, title, id, title FROM family
+            UNION ALL
+            SELECT 'step', s.id, s.title, f.id, f.title
+            FROM family_steps s JOIN family f ON s.roadmap_id=f.id
+            WHERE s.retired=0
+            UNION ALL
+            SELECT 'item', w.id, w.title, f.id, f.title
+            FROM work_items w
+            LEFT JOIN family_steps s ON w.step_id=s.id
+            JOIN family f ON f.id=coalesce(s.roadmap_id, w.roadmap_id)
+            WHERE w.archived=0
+        )
+        SELECT a.id, a.owner_type, a.owner_id, a.name, a.mime, a.size, a.sha256,
+               a.archived, a.revision, a.created_at, (a.size>0 AND length(a.content)=0) AS removed,
+               o.owner_title, o.roadmap_id, o.roadmap_title AS roadmapTitle
+        FROM owners o JOIN attachments a ON a.owner_type=o.owner_type AND a.owner_id=o.owner_id
+        WHERE a.archived=0
+        ORDER BY a.created_at, a.id
+        """,
+        (roadmap_id,),
+    )
+    return [support_record(row) for row in rows]
+
+
 def apply(c: sqlite3.Connection, actor: dict, action: str, p: dict, *, moved_to: dict | None = None) -> dict:
     """Create or change a supporting record. `moved_to` is for continue_chats alone: the tracked chat
     that takes over the steps a chat.update takes off this one, which each step's history names."""

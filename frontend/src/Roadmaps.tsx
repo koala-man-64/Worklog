@@ -904,7 +904,7 @@ export function RoadmapDetail({
         chats={road.chats}
         disabled={road.archived}
       />
-      <Files ownerType="roadmap" ownerId={id} files={road.attachments} />
+      <RoadmapFiles road={road} />
       <RecoverRecords
         groups={[
           { label: "Notes", path: "notes", records: road.notes },
@@ -1388,6 +1388,50 @@ export function RoadmapDetail({
  * A roadmap's status board: where each phase stands, the steps in progress with their agents, the
  * open steps next in outline order, what waits on the person, and the steps lately done.
  */
+function RoadmapFiles({ road }: { road: Roadmap }) {
+  const query = useData<Answer<"/api/v1/roadmaps/{identity}/attachments">>(
+    `/roadmaps/${encodeURIComponent(road.id)}/attachments`,
+  );
+  const ownerLabels = { roadmap: "Roadmap", step: "Step", item: "Work item" };
+  const sources = new Map(
+    query.data?.items.map((file) => {
+      const roadmapRoute = `#roadmaps/${file.roadmapId}`;
+      const sourceLinks = {
+        roadmap: `${roadmapRoute}/material`,
+        step: `${roadmapRoute}/${file.ownerId}`,
+        item: `#work/${file.ownerId}`,
+      };
+      return [
+        file.id,
+        <small>
+          <a href={sourceLinks[file.ownerType]}>
+            {file.roadmapId !== road.id &&
+              file.ownerType !== "roadmap" &&
+              `${file.roadmapTitle} · `}
+            {ownerLabels[file.ownerType]} · {file.ownerTitle}
+          </a>
+        </small>,
+      ] as const;
+    }),
+  );
+  return (
+    <>
+      <Files
+        ownerType="roadmap"
+        ownerId={road.id}
+        files={query.data?.items ?? road.attachments}
+        attachmentSources={sources}
+      />
+      {query.isPending && (
+        <p role="status" className="muted">
+          Loading roadmap attachments…
+        </p>
+      )}
+      <ErrorMessage error={query.error} />
+    </>
+  );
+}
+
 function StatusBoard({
   id,
   road,

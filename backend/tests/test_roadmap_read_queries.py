@@ -100,3 +100,69 @@ def test_the_step_read_runs_a_bounded_number_of_queries_and_reads_one_steps_text
     whole = [sql for sql in statements if "FROM steps" in sql and ("SELECT *" in sql or "SELECT s.*" in sql)
              and "WHERE id='" not in sql]
     assert not whole, whole
+
+
+def test_material_files_follow_the_active_roadmap_tree(client):
+    root = call(client, "POST", "/roadmaps", {"title": "Parent", "steps": [{"title": "Root step"}]})
+    child = call(client, "POST", "/roadmaps", {"title": "Child", "parentId": root["id"]})
+    nested = call(client, "POST", "/roadmaps", {
+        "title": "Grandchild", "parentId": child["id"],
+        "steps": [{"title": "Nested step"}, {"title": "Old step"}],
+    })
+    nested_step, old_step = nested["steps"]
+    standalone = call(client, "POST", "/work-items", {"title": "Direct item", "roadmapId": root["id"]})
+    legacy = call(client, "POST", "/work-items", {"title": "Step-linked item", "stepId": old_step["id"]})
+    with client.app.state.db.transaction() as conn:
+        # Older work items can be tied to the roadmap solely through the step.
+        conn.execute("UPDATE work_items SET roadmap_id=NULL WHERE id=?", (legacy["id"],))
+
+    def attach(owner_type, owner, name):
+        response = client.post(
+            "/api/v1/attachments",
+            params={"ownerType": owner_type, "ownerId": owner["id"], "name": name},
+            headers={"Idempotency-Key": str(uuid.uuid4()), "Content-Type": "text/plain"},
+            content=b"Example attachment",
+        )
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    included = [
+        ("roadmap", root, root, "direct.txt"),
+        ("step", root["steps"][0], root, "step.txt"),
+        ("item", standalone, root, "item.txt"),
+        ("roadmap", child, child, "child.txt"),
+        ("roadmap", nested, nested, "nested.txt"),
+        ("step", nested_step, nested, "nested-step.txt"),
+        ("item", legacy, nested, "legacy-item.txt"),
+    ]
+    expected = {}
+    for owner_type, owner, roadmap, name in included:
+        file = attach(owner_type, owner, name)
+        expected[file["id"]] = (owner_type, owner["id"], owner["title"], roadmap["id"], roadmap["title"], name)
+
+    archived_file = attach("roadmap", root, "archived.txt")
+    call(client, "POST", f"/attachments/{archived_file['id']}/archive", {"revision": archived_file["revision"]})
+    archived_item = call(client, "POST", "/work-items", {"title": "Archived item", "roadmapId": root["id"]})
+    attach("item", archived_item, "archived-item.txt")
+    call(client, "POST", f"/work-items/{archived_item['id']}/archive", {"revision": archived_item["revision"]})
+    archived_child = call(client, "POST", "/roadmaps", {"title": "Archived child", "parentId": root["id"]})
+    archived_child_file = attach("roadmap", archived_child, "archived-child.txt")
+    call(client, "POST", f"/roadmaps/{archived_child['id']}/archive", {"revision": archived_child["revision"]})
+    attach("step", old_step, "retired-step.txt")
+    call(client, "POST", f"/roadmaps/{nested['id']}/revisions", {
+        "revision": nested["revision"], "title": nested["title"], "steps": [nested_step],
+    })
+    unrelated = call(client, "POST", "/roadmaps", {"title": "Unrelated roadmap"})
+    attach("roadmap", unrelated, "unrelated.txt")
+
+    result = call(client, "GET", f"/roadmaps/{root['id']}/attachments")
+    assert result["total"] == len(result["items"]) == len(expected)
+    assert {
+        file["id"]: (file["ownerType"], file["ownerId"], file["ownerTitle"],
+                     file["roadmapId"], file["roadmapTitle"], file["name"])
+        for file in result["items"]
+    } == expected
+    assert all("content" not in file for file in result["items"])
+    archived_result = call(client, "GET", f"/roadmaps/{archived_child['id']}/attachments")
+    assert [file["id"] for file in archived_result["items"]] == [archived_child_file["id"]]
+    assert client.get(f"/api/v1/roadmaps/{uuid.uuid4()}/attachments").status_code == 404

@@ -28,7 +28,7 @@ ORDER = [
     # Records that stand on their own, and the agent identities that discussions and chats share.
     "resources", "tickets", "discussions", "push",
     # Reusable slot worktrees and bounded repository checkout leases.
-    "windows_file_time", "caller_cleanliness", "slot_worktrees", "worktree_claims", "leases",
+    "windows_file_time", "caller_cleanliness", "slot_worktrees", "worktree_claims", "claude_settings", "leases",
     # Agent runs and participations with the repository catalog, waves and dispatch, then agent registration.
     "coordination", "waves", "dispatch", "registration", "registry",
     # Schema history, proposals, then backup and restore, offline compaction and the read-only doctor.

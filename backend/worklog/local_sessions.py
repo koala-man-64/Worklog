@@ -5,13 +5,16 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import subprocess
 import tempfile
 from collections.abc import Callable
 from contextlib import ExitStack
 from pathlib import Path
+from typing import get_args
 
 from .common import AgentRequestError, shows_as_written
+from .models import CLAUDE_SESSION_EFFORTS, SESSION_MODEL_PATTERN, SessionReasoningEffort
 from .recovery import InstanceLock
 from .session_launches import _prepare_session, _safe_session_id
 
@@ -65,10 +68,21 @@ def _read(path: Path) -> dict | None:
 
 def start_local_session(*, receipt_dir: Path, parent_id: str, provider: str, cwd: Path, label: str,
                         request_id: str, worklog_command: list[str], prepare_credential: Callable[[str], None],
-                        register_child: Callable[[str, str, str], dict]) -> dict:
+                        register_child: Callable[[str, str, str], dict], model: str | None = None,
+                        reasoning_effort: str | None = None) -> dict:
     """Return the saved provider and Worklog identities. Never repeat a possibly completed launch."""
     if provider not in {"codex", "claude"}:
         raise ValueError("Choose codex or claude as the provider")
+    requested_options = {}
+    if model is not None:
+        if len(model) > 200 or not re.fullmatch(SESSION_MODEL_PATTERN, model):
+            raise ValueError("Give --model a model ID or alias of up to 200 characters")
+        requested_options["requestedModel"] = model
+    if reasoning_effort is not None:
+        efforts = CLAUDE_SESSION_EFFORTS if provider == "claude" else get_args(SessionReasoningEffort)
+        if reasoning_effort not in efforts:
+            raise ValueError(f"Choose one of {', '.join(efforts)} for {provider} --reasoning-effort")
+        requested_options["reasoningEffort"] = reasoning_effort
     if not 8 <= len(request_id) <= 200 or any(ord(ch) < 33 or ord(ch) > 126 for ch in request_id):
         raise ValueError("A request ID must be 8 to 200 printable ASCII characters without spaces")
     label = label.strip()
@@ -82,7 +96,10 @@ def start_local_session(*, receipt_dir: Path, parent_id: str, provider: str, cwd
     key = _digest([parent_id, request_id])
     name = "session-" + key[:32]
     child_command = [*worklog_command, "--as", name]
-    fingerprint = _digest([provider, os.path.normcase(directory), label])
+    launch_fields = [provider, os.path.normcase(directory), label]
+    if requested_options:
+        launch_fields.extend((model or "", reasoning_effort or ""))
+    fingerprint = _digest(launch_fields)
     receipt_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     path = receipt_dir / (key + ".json")
     with ExitStack() as locks:
@@ -93,7 +110,7 @@ def start_local_session(*, receipt_dir: Path, parent_id: str, provider: str, cwd
         record = _read(path)
         if record is not None:
             if record["fingerprint"] != fingerprint:
-                raise ValueError("This request ID already identifies a different provider, directory or label")
+                raise ValueError("This request ID already identifies a different provider, directory, label, model or effort")
             if record["phase"] not in {"unstarted", "prepared", "registering", "registered"}:
                 raise ValueError("The provider may already have created this chat. Check its sessions before starting another.")
 
@@ -109,7 +126,9 @@ def start_local_session(*, receipt_dir: Path, parent_id: str, provider: str, cwd
                 "For this preparation turn, reply WORKLOG_READY and wait for a task. Do not use tools."
             )
             try:
-                chat_id, model = _prepare_session(provider, directory, prompt, allow_non_git=True)
+                chat_id, reported_model = _prepare_session(
+                    provider, directory, prompt, requested_options=requested_options, allow_non_git=True,
+                )
                 chat_id = _safe_session_id(chat_id)
             except FileNotFoundError as exc:
                 # Executable lookup or process creation failed before a chat could be started.
@@ -118,7 +137,7 @@ def start_local_session(*, receipt_dir: Path, parent_id: str, provider: str, cwd
                 raise ValueError(f"The {provider} CLI or working directory was unavailable. Retry the same request ID.") from exc
             except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as exc:
                 raise ValueError(f"{provider} did not confirm creation. Check its sessions before starting another.") from exc
-            record.update(phase="prepared", chatId=chat_id, model=model)
+            record.update(phase="prepared", chatId=chat_id, model=reported_model)
             _save(path, record)
 
         # Registration is resumable independently. A lost HTTP reply or limit must never make
@@ -137,4 +156,5 @@ def start_local_session(*, receipt_dir: Path, parent_id: str, provider: str, cwd
             record.update(phase="registered", agentId=child["agentId"])
             _save(path, record)
         return {"state": "created", "provider": provider, "chatId": chat_id, "model": record["model"],
-                "cwd": directory, "name": name, "agentId": record["agentId"], "worklogCommand": child_command}
+                "cwd": directory, "name": name, "agentId": record["agentId"], "worklogCommand": child_command,
+                **requested_options}

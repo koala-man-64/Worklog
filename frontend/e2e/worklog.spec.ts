@@ -791,6 +791,79 @@ test("a progress change made while editing leaves the structure draft current", 
   expect(active[1].status).toBe("doing");
   expect(saved.revision).toBe(2);
 });
+test("Material shows attachments across the roadmap tree and links to their sources", async ({
+  page,
+  baseURL,
+}) => {
+  const origin = new URL(baseURL!).origin;
+  const boot = await page.request.post("/api/v1/session/bootstrap", {
+    headers: { Origin: origin, "X-Worklog-Bootstrap": "1" },
+    data: {},
+  });
+  expect(boot.ok()).toBeTruthy();
+  const { csrfToken } = await boot.json();
+  async function create(path: string, data: object | Buffer) {
+    const response = await page.request.post("/api/v1" + path, {
+      headers: {
+        Origin: origin,
+        "X-CSRF-Token": csrfToken,
+        "Idempotency-Key": crypto.randomUUID(),
+        "Content-Type": Buffer.isBuffer(data) ? "text/plain" : "application/json",
+      },
+      data,
+    });
+    expect(response.ok(), `${path} ${await response.text()}`).toBeTruthy();
+    return response.json();
+  }
+
+  const root = await create("/roadmaps", {
+    title: "Attachment roadmap " + Date.now(),
+    steps: [{ title: "Review inputs" }],
+  });
+  const step = root.steps[0];
+  const child = await create("/roadmaps", { title: "Child", parentId: root.id });
+  const nested = await create("/roadmaps", { title: "Nested", parentId: child.id });
+  const item = await create("/work-items", { title: "Draft notes", stepId: step.id });
+  for (const [ownerType, ownerId, name] of [
+    ["step", step.id, "review.txt"],
+    ["item", item.id, "draft.txt"],
+    ["roadmap", nested.id, "nested.txt"],
+  ]) {
+    const query = new URLSearchParams({ ownerType, ownerId, name });
+    await create("/attachments?" + query, Buffer.from("Fixture file"));
+  }
+
+  await page.goto(`/#roadmaps/${root.id}`);
+  await page.getByRole("link", { name: "Material", exact: true }).click();
+  const files = page.locator(".files");
+  for (const [name, label, href] of [
+    ["review.txt", "Step · Review inputs", `#roadmaps/${root.id}/${step.id}`],
+    ["draft.txt", "Work item · Draft notes", `#work/${item.id}`],
+    ["nested.txt", "Roadmap · Nested", `#roadmaps/${nested.id}/material`],
+  ]) {
+    const download = files.getByRole("link", { name, exact: true });
+    await expect(download).toHaveAttribute("href", /\/attachments\/.+\?download=1$/);
+    const row = files.locator(".line").filter({
+      has: page.getByRole("link", { name, exact: true }),
+    });
+    await expect(row.getByRole("link", { name: label })).toHaveAttribute("href", href);
+    await expect(row.getByRole("button", { name: "Archive" })).toHaveCount(0);
+  }
+
+  await files.getByLabel("Attach a file").setInputFiles({
+    name: "parent.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("Attached from Material"),
+  });
+  const uploaded = files.getByRole("link", { name: "parent.txt" });
+  await expect(uploaded).toBeVisible();
+  await expect(files.getByRole("button", { name: "Archive" })).toHaveCount(1);
+  await files.getByRole("link", { name: "Roadmap · Nested" }).click();
+  await expect(page).toHaveURL(`/#roadmaps/${nested.id}/material`);
+  await expect(files.getByRole("link", { name: "nested.txt" })).toBeVisible();
+  await expect(uploaded).toHaveCount(0);
+});
+
 test("a step's text edited alone survives a structure draft's rebase", async ({
   page,
   baseURL,

@@ -129,10 +129,18 @@ describe("StartSession", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("sends the selected provider, trimmed working folder, and exact prompt, then refreshes linked data", async () => {
+  it("sends the selected provider, model, effort, folder, and prompt, then refreshes linked data", async () => {
     const fetch = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValue(response(launch()));
+      .mockResolvedValue(
+        response(
+          launch({
+            provider: "claude",
+            requestedModel: "sonnet",
+            reasoningEffort: "high",
+          }),
+        ),
+      );
     const { client } = mount();
     client.setQueryData([getDataContext(), `/work-items/${ITEM_ID}`], {
       title: "old",
@@ -151,6 +159,15 @@ describe("StartSession", () => {
     expect(
       screen.getByText(/Claude tools are disabled during preparation/),
     ).toBeTruthy();
+    expect(screen.queryByRole("option", { name: "ultra" })).toBeNull();
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "Model" }),
+      " sonnet ",
+    );
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "Reasoning effort" }),
+      "high",
+    );
     await userEvent.type(
       screen.getByRole("textbox", { name: "Working folder" }),
       "  C:\\Projects\\repo  ",
@@ -171,7 +188,13 @@ describe("StartSession", () => {
       provider: "claude",
       cwd: "C:\\Projects\\repo",
       prompt: taskPrompt,
+      model: "sonnet",
+      reasoningEffort: "high",
     });
+    expect(
+      await screen.findByText("sonnet", { selector: "strong" }),
+    ).toBeTruthy();
+    expect(screen.getByText("high", { selector: "strong" })).toBeTruthy();
     expect(
       await screen.findByText(
         /Open request sent\. Send Continue in the desktop app/,
